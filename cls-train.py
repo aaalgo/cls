@@ -67,6 +67,10 @@ def training (loss, rate):
     return optimizer.minimize(loss, global_step=global_step)
 
 def run_training ():
+    try:
+        os.makedirs(FLAGS.model)
+    except:
+        pass
     config = dict(seed=1996,
                 shuffle=True,
                 reshuffle=True,
@@ -183,7 +187,8 @@ def run_training ():
                         pass
                     print('evaluation: loss = %.4f, accuracy = %.4f' % (loss_sum2/batch_sum2, accuracy_sum2/batch_sum2))
                 if (step + 1) % FLAGS.save_steps == 0 or (step + 1) == FLAGS.max_steps:
-                    saver.save(sess, FLAGS.model, global_step=step)
+                    ckpt_path = '%s/%d' % (FLAGS.model, step)
+                    saver.save(sess, ckpt_path)
                 pass
             pass
         pass

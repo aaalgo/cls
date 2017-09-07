@@ -52,7 +52,10 @@ def inference (inputs, num_classes):
     loader = pkgutil.find_loader('.'.join(fs[:-1]))
     module = loader.load_module('')
     net = getattr(module, fs[-1])
-    return net(inputs, num_classes)
+    logits, _ = net(inputs, num_classes)
+    logits = tf.squeeze(logits, [1,2]) # resnet output is (N,1,1,C, remove the 
+    return tf.identity(logits, name='logits')
+
 def fcn_loss (logits, labels):
     with tf.name_scope('loss'):
         labels = tf.to_int32(labels)    # float from picpac
@@ -123,9 +126,8 @@ def run_training ():
     with tf.Graph().as_default():
         X = tf.placeholder(tf.float32, shape=(FLAGS.batch, None, None, FLAGS.channels), name="images")
         Y_ = tf.placeholder(tf.float32, shape=(FLAGS.batch,), name="labels")
-        logits, _ = inference(X, FLAGS.classes)
+        logits = inference(X, FLAGS.classes)
 
-        logits = tf.squeeze(logits, [1,2]) # resnet output is (N,1,1,C, remove the 
 
         loss, accuracy = fcn_loss(logits, Y_)
         train_op = training(loss, FLAGS.learning_rate)
@@ -162,7 +164,7 @@ def run_training ():
                 loss_sum += loss_value * FLAGS.batch
                 accuracy_sum += accuracy_value * FLAGS.batch
                 batch_sum += FLAGS.batch
-                if step % 100 == 0:
+                if (step + 1) % 100 == 0:
                     #tl = timeline.Timeline(run_metadata.step_stats)
                     #ctf = tl.generate_chrome_trace_format()
                     #with open('timeline.json', 'w') as f:
@@ -176,7 +178,7 @@ def run_training ():
                     #summary_str = sess.run(summary_op, feed_dict=feed_dict)
                     #summary_writer.add_summary(summary_str, step)
                     #summary_writer.flush()
-                if te_stream and step % FLAGS.test_steps == 0:
+                if te_stream and (step + 1) % FLAGS.test_steps == 0:
                     # evaluation
                     te_stream.reset()
                     cmatrix = np.zeros((FLAGS.classes,FLAGS.classes))
@@ -224,7 +226,7 @@ def run_training ():
                     print('confusion matrix divided by row sum:')
                     print(np.divide(cmatrix,np.tile(rowsum,(5,1)).transpose()))	
                 if (step + 1) % FLAGS.save_steps == 0 or (step + 1) == FLAGS.max_steps:
-                    ckpt_path = '%s/%d' % (FLAGS.model, step)
+                    ckpt_path = '%s/%d' % (FLAGS.model, (step + 1))
                     saver.save(sess, ckpt_path)
                 pass
             pass

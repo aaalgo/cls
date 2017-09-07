@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 import pkgutil
+import numpy as np
 import os
 import datetime
 import picpac
@@ -27,6 +28,7 @@ import tensorflow.contrib.slim as slim
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
+flags.DEFINE_string('opt','adam', '')
 flags.DEFINE_string('db', 'db', 'database')
 flags.DEFINE_string('test_db', None, 'evaluation dataset')
 flags.DEFINE_integer('classes', '2', 'number of classes')
@@ -34,10 +36,10 @@ flags.DEFINE_integer('resize', None, '')
 flags.DEFINE_integer('channels', 3, '')
 flags.DEFINE_integer('batch', 1, 'Batch size.  ')
 flags.DEFINE_string('net', 'resnet_v1.resnet_v1_50', 'cnn architecture, e.g. vgg.vgg_a')
-flags.DEFINE_float('learning_rate', 0.0001, 'Initial learning rate.')
-flags.DEFINE_integer('test_steps', 0, 'Number of steps to run evaluation.')
+flags.DEFINE_float('learning_rate', 0.01, 'Initial learning rate.')
+flags.DEFINE_integer('test_steps', 1000, 'Number of steps to run evaluation.')
 flags.DEFINE_integer('save_steps', 1000, 'Number of steps to run evaluation.')
-flags.DEFINE_integer('max_steps', 200000, 'Number of steps to run trainer.')
+flags.DEFINE_integer('max_steps', 800000, 'Number of steps to run trainer.')
 flags.DEFINE_string('model', 'model', 'Directory to put the training data.')
 flags.DEFINE_integer('split', 1, 'split into this number of parts for cross-validation')
 flags.DEFINE_integer('split_fold', 0, 'part index for cross-validation')
@@ -51,7 +53,6 @@ def inference (inputs, num_classes):
     module = loader.load_module('')
     net = getattr(module, fs[-1])
     return net(inputs, num_classes)
-
 def fcn_loss (logits, labels):
     with tf.name_scope('loss'):
         labels = tf.to_int32(labels)    # float from picpac
@@ -62,9 +63,17 @@ def fcn_loss (logits, labels):
 
 def training (loss, rate):
     #tf.scalar_summary(loss.op.name, loss)
-    optimizer = tf.train.GradientDescentOptimizer(rate)
-    global_step = tf.Variable(0, name='global_step', trainable=False)
-    return optimizer.minimize(loss, global_step=global_step)
+	if FLAGS.opt == 'adam':
+		rate /= 100
+		optimizer = tf.train.AdamOptimizer(rate)
+		print('adam!')
+	else:
+		optimizer = tf.train.GradientDescentOptimizer(rate)
+		print('gradient!')
+		pass
+   
+	global_step = tf.Variable(0, name='global_step', trainable=False)
+	return optimizer.minimize(loss, global_step=global_step)
 
 def run_training ():
     try:
@@ -170,22 +179,50 @@ def run_training ():
                 if te_stream and step % FLAGS.test_steps == 0:
                     # evaluation
                     te_stream.reset()
+                    cmatrix = np.zeros((FLAGS.classes,FLAGS.classes))
+                    total = 0
                     batch_sum2 = 0
                     loss_sum2 = 0
                     accuracy_sum2 = 0
                     for images, labels, pad in te_stream:
                         bs = FLAGS.batch - pad
+                        total += 1
                         if pad > 0:
                             numpy.resize(images, (bs,)+images.shape[1:])
                             numpy.resize(labels, (bs,))
+
                         feed_dict = {X: images,
                                      Y_: labels}
-                        _, loss_value, accuracy_value = sess.run([train_op, loss, accuracy], feed_dict=feed_dict)
+
+                        _, loss_value, accuracy_value,ll = sess.run([train_op, loss, accuracy,logits], feed_dict=feed_dict)
+
                         batch_sum2 += bs
+                        cmatrix[int(labels), np.where(ll == np.max(ll))[1]] += np.divide(float(1),np.size(np.where(ll == np.max(ll))[1]))
                         loss_sum2 += loss_value * bs
+                        #print(int(labels))
+#print(cmatrix)
+                        #print(np.size(np.where(ll == np.max(ll))[1]))
+                        #print(ll)
                         accuracy_sum2 += accuracy_value * bs
+						
                         pass
+                    rowsum = np.sum(cmatrix, axis = 1)
+                    colsum = np.sum(cmatrix, axis = 0)
+#print(total)
+#print(np.tile(rowsum,(FLAGS.classes,1)).transpose())
+#print(np.tile(colsum,(FLAGS.classes,1)))
+                    print('row---label; colum ---predict')
+                    print(total)
                     print('evaluation: loss = %.4f, accuracy = %.4f' % (loss_sum2/batch_sum2, accuracy_sum2/batch_sum2))
+                    print('accuracy from confusion matrix = %.4f' % np.divide(np.trace(cmatrix),float(total)))
+                    print('absolute confusion matrix:') 
+                    print(cmatrix)
+                    print('confusion matrix divided by total:')
+                    print(np.divide(cmatrix,float(total)))
+                    print('confusion matrix divided by col sum:')
+                    print(np.divide(cmatrix,np.tile(colsum,(5,1))))
+                    print('confusion matrix divided by row sum:')
+                    print(np.divide(cmatrix,np.tile(rowsum,(5,1)).transpose()))	
                 if (step + 1) % FLAGS.save_steps == 0 or (step + 1) == FLAGS.max_steps:
                     ckpt_path = '%s/%d' % (FLAGS.model, step)
                     saver.save(sess, ckpt_path)

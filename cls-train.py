@@ -171,7 +171,7 @@ def run_training ():
                     #    f.write(ctf)
 
                     print(datetime.datetime.now())
-                    print('step %d: loss = %.4f, accuracy = %.4f' % (step, loss_sum/batch_sum, accuracy_sum/batch_sum))
+                    print('step %d: loss = %.4f, accuracy = %.4f' % (step+1, loss_sum/batch_sum, accuracy_sum/batch_sum))
                     loss_sum = 0
                     accuracy_sum = 0
                     batch_sum = 0

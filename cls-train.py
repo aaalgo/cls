@@ -107,7 +107,7 @@ def run_training ():
                                     # Caffe's dimension order is different.
                 )
     # training stream
-    tr_stream = picpac.ImageStream(FLAGS.db, split_negate=False, perturb=True, loop=True, **config)
+    tr_stream = picpac.ImageStream(FLAGS.db, split_negate=False, perturb=False, loop=True, **config)
     te_stream = None
     if FLAGS.test_steps > 0:
         # testing stream, "negate" inverts the image selection specified by split & split_fold
@@ -160,11 +160,12 @@ def run_training ():
                 #l_v, s_v = sess.run([logits, score], feed_dict=feed_dict)
                 #print(images.shape, s_v.shape, l_v.shape)
                 #_, loss_value = sess.run([train_op, loss], feed_dict=feed_dict, options=run_options, run_metadata=run_metadata)
-                _, loss_value, accuracy_value = sess.run([train_op, loss, accuracy], feed_dict=feed_dict)
+                _, loss_value, accuracy_value, ll = sess.run([train_op, loss, accuracy, logits], feed_dict=feed_dict)
+                #print('XXX', labels[0], accuracy_value, ll[0])
                 loss_sum += loss_value * FLAGS.batch
                 accuracy_sum += accuracy_value * FLAGS.batch
                 batch_sum += FLAGS.batch
-                if (step + 1) % 100 == 0:
+                if (step + 1) % 1000 == 0:
                     #tl = timeline.Timeline(run_metadata.step_stats)
                     #ctf = tl.generate_chrome_trace_format()
                     #with open('timeline.json', 'w') as f:
@@ -196,7 +197,7 @@ def run_training ():
                         feed_dict = {X: images,
                                      Y_: labels}
 
-                        _, loss_value, accuracy_value,ll = sess.run([train_op, loss, accuracy,logits], feed_dict=feed_dict)
+                        loss_value, accuracy_value,ll = sess.run([loss, accuracy,logits], feed_dict=feed_dict)
 
                         batch_sum2 += bs
                         cmatrix[int(labels), np.where(ll == np.max(ll))[1]] += np.divide(float(1),np.size(np.where(ll == np.max(ll))[1]))
@@ -219,8 +220,8 @@ def run_training ():
                     print('accuracy from confusion matrix = %.4f' % np.divide(np.trace(cmatrix),float(total)))
                     print('absolute confusion matrix:') 
                     print(cmatrix)
-                    print('confusion matrix divided by total:')
-                    print(np.divide(cmatrix,float(total)))
+                    #print('confusion matrix divided by total:')
+                    #print(np.divide(cmatrix,float(total)))
                     print('confusion matrix divided by col sum:')
                     print(np.divide(cmatrix,np.tile(colsum,(5,1))))
                     print('confusion matrix divided by row sum:')

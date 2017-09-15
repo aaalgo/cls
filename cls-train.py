@@ -223,9 +223,9 @@ def run_training ():
                     #print('confusion matrix divided by total:')
                     #print(np.divide(cmatrix,float(total)))
                     print('confusion matrix divided by col sum:')
-                    print(np.divide(cmatrix,np.tile(colsum,(args.classes,1))))
+                    print(np.divide(cmatrix,np.tile(colsum,(FLAGS.classes,1))))
                     print('confusion matrix divided by row sum:')
-                    print(np.divide(cmatrix,np.tile(rowsum,(args.classes,1)).transpose()))	
+                    print(np.divide(cmatrix,np.tile(rowsum,(FLAGS.classes,1)).transpose()))	
                 if (step + 1) % FLAGS.save_steps == 0 or (step + 1) == FLAGS.max_steps:
                     ckpt_path = '%s/%d' % (FLAGS.model, (step + 1))
                     saver.save(sess, ckpt_path)

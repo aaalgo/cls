@@ -95,14 +95,14 @@ def run_training ():
                 stratify=True,
                 #mixin="db0",
                 #mixin_group_delta=0,
-                pert_color1=10,
-                pert_color2=10,
-                pert_color3=10,
-                pert_angle=30,
+                pert_color1=20,
+                pert_color2=20,
+                pert_color3=20,
+                pert_angle=15,
                 pert_min_scale=0.8,
                 pert_max_scale=1.2,
                 #pad=False,
-                #pert_hflip=True,
+                pert_hflip=True,
                 channel_first=False # this is tensorflow specific
                                     # Caffe's dimension order is different.
                 )

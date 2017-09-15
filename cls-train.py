@@ -107,7 +107,7 @@ def run_training ():
                                     # Caffe's dimension order is different.
                 )
     # training stream
-    tr_stream = picpac.ImageStream(FLAGS.db, split_negate=False, perturb=False, loop=True, **config)
+    tr_stream = picpac.ImageStream(FLAGS.db, split_negate=False, perturb=True, loop=True, **config)
     te_stream = None
     if FLAGS.test_steps > 0:
         # testing stream, "negate" inverts the image selection specified by split & split_fold

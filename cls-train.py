@@ -39,7 +39,7 @@ flags.DEFINE_string('net', 'resnet_v1.resnet_v1_50', 'cnn architecture, e.g. vgg
 flags.DEFINE_float('learning_rate', 0.01, 'Initial learning rate.')
 flags.DEFINE_integer('test_steps', 1000, 'Number of steps to run evaluation.')
 flags.DEFINE_integer('save_steps', 1000, 'Number of steps to run evaluation.')
-flags.DEFINE_integer('max_steps', 800000, 'Number of steps to run trainer.')
+flags.DEFINE_integer('max_steps', 600000, 'Number of steps to run trainer.')
 flags.DEFINE_string('model', 'model', 'Directory to put the training data.')
 flags.DEFINE_integer('split', 1, 'split into this number of parts for cross-validation')
 flags.DEFINE_integer('split_fold', 0, 'part index for cross-validation')
@@ -98,7 +98,7 @@ def run_training ():
                 pert_color1=10,
                 pert_color2=10,
                 pert_color3=10,
-                #pert_angle=10,
+                pert_angle=10,
                 pert_min_scale=0.8,
                 pert_max_scale=1.2,
                 #pad=False,
@@ -107,7 +107,7 @@ def run_training ():
                                     # Caffe's dimension order is different.
                 )
     # training stream
-    tr_stream = picpac.ImageStream(FLAGS.db, split_negate=False, perturb=False, loop=True, **config)
+    tr_stream = picpac.ImageStream(FLAGS.db, split_negate=False, perturb=True, loop=True, **config)
     te_stream = None
     if FLAGS.test_steps > 0:
         # testing stream, "negate" inverts the image selection specified by split & split_fold
@@ -215,7 +215,7 @@ def run_training ():
 #print(np.tile(rowsum,(FLAGS.classes,1)).transpose())
 #print(np.tile(colsum,(FLAGS.classes,1)))
                     print('row---label; colum ---predict')
-                    print(total)
+                    print('total numer:%d, step:%d' % (total, step+1))
                     print('evaluation: loss = %.4f, accuracy = %.4f' % (loss_sum2/batch_sum2, accuracy_sum2/batch_sum2))
                     print('accuracy from confusion matrix = %.4f' % np.divide(np.trace(cmatrix),float(total)))
                     print('absolute confusion matrix:') 
@@ -223,9 +223,9 @@ def run_training ():
                     #print('confusion matrix divided by total:')
                     #print(np.divide(cmatrix,float(total)))
                     print('confusion matrix divided by col sum:')
-                    print(np.divide(cmatrix,np.tile(colsum,(5,1))))
+                    print(np.divide(cmatrix,np.tile(colsum,(FLAGS.classes,1))))
                     print('confusion matrix divided by row sum:')
-                    print(np.divide(cmatrix,np.tile(rowsum,(5,1)).transpose()))	
+                    print(np.divide(cmatrix,np.tile(rowsum,(FLAGS.classes,1)).transpose()))	
                 if (step + 1) % FLAGS.save_steps == 0 or (step + 1) == FLAGS.max_steps:
                     ckpt_path = '%s/%d' % (FLAGS.model, (step + 1))
                     saver.save(sess, ckpt_path)

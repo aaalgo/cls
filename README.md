@@ -1,25 +1,26 @@
 A developed deep learning architecture for classification
 
 ## Requirements
--Python
--Tensorflow
--PicPac
+- Python
+- Tensorflow
+- Picpac
 
 ## Training
 ```bash
--picpac-import, explore
-Stream data into same image database format
+picpac-import
+#Stream data into same image database format
 ```
 ```
+Eg:
 picpac-import -f 2 ImageDirectory db
-		ImageDirectory contains N subdirectories named 0, 1, ..., each containg
-		images for one category
+
+ImageDirectory contains N subdirectories named 0, 1, ..., each containg images for one category
 Refer to [Picpac](https://github.com/aaalgo/picpac/blob/master/README.md)for more info
 ```
 
 ```bash
 cls-train.py
-Trainer of images classification, allows evaluation during training
+#Trainer of images classification, allows evaluation during training
 ```
 ```
 arguments:

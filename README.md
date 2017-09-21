@@ -7,15 +7,16 @@
 
 ## Importing database
 ### picpac-import
-###### Stream data into same image database format  
+#Stream data into same image database format  
+```
 Eg:  
 picpac-import -f 2 ImageDirectory db  
 #ImageDirectory contains N subdirectories named 0, 1, ..., each containg images for one category  
 #Refer to [picpac] (#https://github.com/aaalgo/picpac/blob/master/README.md) for more info  
-
+```
 ## Training
 ### cls-train.py
->Trainer of images classification, allows evaluation during training
+#Trainer of images classification, allows evaluation during training
 ```
 arguments:  
 --db  
@@ -26,11 +27,11 @@ arguments:
 		Numbers of channels used in training  
 optional arguments:  
 --opt  
-        Optimizer of network training, choices of adam(default) or gradient  
+        	Optimizer of network training, choices of adam(default) or gradient  
 --test_db  
-        Evaluating image database  
+        	Evaluating image database  
 --model  
-        Directory to save models  
+        	Directory to save models  
 --learning_rate  
 		Initial learning rate  
 --test_steps  

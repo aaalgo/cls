@@ -35,14 +35,14 @@ flags.DEFINE_integer('classes', '2', 'number of classes')
 flags.DEFINE_integer('resize', None, '')
 flags.DEFINE_integer('channels', 3, '')
 flags.DEFINE_integer('batch', 1, 'Batch size.  ')
-flags.DEFINE_string('net', 'resnet_v1.resnet_v1_50', 'cnn architecture, e.g. vgg.vgg_a')
+flags.DEFINE_string('net', 'resnet_v1.resnet_v1_101', 'cnn architecture, e.g. vgg.vgg_a')
 flags.DEFINE_float('learning_rate', 0.01, 'Initial learning rate.')
 flags.DEFINE_integer('test_steps', 1000, 'Number of steps to run evaluation.')
 flags.DEFINE_integer('save_steps', 1000, 'Number of steps to run evaluation.')
 flags.DEFINE_integer('max_steps', 600000, 'Number of steps to run trainer.')
 flags.DEFINE_string('model', 'model', 'Directory to put the training data.')
 flags.DEFINE_integer('split', 1, 'split into this number of parts for cross-validation')
-flags.DEFINE_integer('split_fold', 0, 'part index for cross-validation')
+flags.DEFINE_integer('split_fold', 1, 'part index for cross-validation')
 
 # load network architecture by name
 def inference (inputs, num_classes):
@@ -95,14 +95,16 @@ def run_training ():
                 stratify=True,
                 #mixin="db0",
                 #mixin_group_delta=0,
-                pert_color1=10,
-                pert_color2=10,
-                pert_color3=10,
-                pert_angle=10,
+
+                pert_color1=20,
+                pert_color2=20,
+                pert_color3=20,
+                pert_angle=15,
+
                 pert_min_scale=0.8,
                 pert_max_scale=1.2,
                 #pad=False,
-                #pert_hflip=True,
+                pert_hflip=True,
                 channel_first=False # this is tensorflow specific
                                     # Caffe's dimension order is different.
                 )
@@ -165,7 +167,7 @@ def run_training ():
                 loss_sum += loss_value * FLAGS.batch
                 accuracy_sum += accuracy_value * FLAGS.batch
                 batch_sum += FLAGS.batch
-                if (step + 1) % 1000 == 0:
+                if (step + 1) % 100 == 0:
                     #tl = timeline.Timeline(run_metadata.step_stats)
                     #ctf = tl.generate_chrome_trace_format()
                     #with open('timeline.json', 'w') as f:
@@ -189,7 +191,7 @@ def run_training ():
                     accuracy_sum2 = 0
                     for images, labels, pad in te_stream:
                         bs = FLAGS.batch - pad
-                        total += 1
+                        total += bs
                         if pad > 0:
                             numpy.resize(images, (bs,)+images.shape[1:])
                             numpy.resize(labels, (bs,))

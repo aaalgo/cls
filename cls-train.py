@@ -39,7 +39,7 @@ flags.DEFINE_string('net', 'resnet_v1.resnet_v1_101', 'cnn architecture, e.g. vg
 flags.DEFINE_float('learning_rate', 0.01, 'Initial learning rate.')
 flags.DEFINE_integer('test_steps', 1000, 'Number of steps to run evaluation.')
 flags.DEFINE_integer('save_steps', 1000, 'Number of steps to run evaluation.')
-flags.DEFINE_integer('max_steps', 800000, 'Number of steps to run trainer.')
+flags.DEFINE_integer('max_steps', 600000, 'Number of steps to run trainer.')
 flags.DEFINE_string('model', 'model', 'Directory to put the training data.')
 flags.DEFINE_integer('split', 1, 'split into this number of parts for cross-validation')
 flags.DEFINE_integer('split_fold', 1, 'part index for cross-validation')
@@ -95,10 +95,12 @@ def run_training ():
                 stratify=True,
                 #mixin="db0",
                 #mixin_group_delta=0,
+
                 pert_color1=20,
                 pert_color2=20,
                 pert_color3=20,
                 pert_angle=15,
+
                 pert_min_scale=0.8,
                 pert_max_scale=1.2,
                 #pad=False,
@@ -215,7 +217,7 @@ def run_training ():
 #print(np.tile(rowsum,(FLAGS.classes,1)).transpose())
 #print(np.tile(colsum,(FLAGS.classes,1)))
                     print('row---label; colum ---predict')
-                    print(total)
+                    print('total numer:%d, step:%d' % (total, step+1))
                     print('evaluation: loss = %.4f, accuracy = %.4f' % (loss_sum2/batch_sum2, accuracy_sum2/batch_sum2))
                     print('accuracy from confusion matrix = %.4f' % np.divide(np.trace(cmatrix),float(total)))
                     print('absolute confusion matrix:') 

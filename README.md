@@ -8,12 +8,11 @@
 ## Importing database
 ### picpac-import
 Stream data into same image database format  
+Refer to [picpac](https://github.com/aaalgo/picpac/blob/master/README.md) for more info
 ```
 Eg:  
 picpac-import -f 2 ImageDirectory db  
-ImageDirectory contains N subdirectories named 0, 1, ..., each containg images for one category  
-Refer to [picpac](https://github.com/aaalgo/picpac/blob/master/README.md) for more info
-[Tensorflow Slim](https://github.com/aaalgo/picpac/tree/master/examples/tensorflow) 
+#ImageDirectory contains N subdirectories named 0, 1, ..., each containg images for one category  
 ```
 ## Training
 ### cls-train.py

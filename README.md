@@ -1,4 +1,4 @@
-A developed deep learning architecture for classification
+**A developed deep learning architecture for classification**
 
 ## Requirements
 - Python
@@ -15,7 +15,7 @@ Eg:
 picpac-import -f 2 ImageDirectory db
 
 ImageDirectory contains N subdirectories named 0, 1, ..., each containg images for one category
-Refer to [Picpac](https://github.com/aaalgo/picpac/blob/master/README.md)for more info
+Refer to [Picpac](https://github.com/aaalgo/picpac/blob/master/README.md) for more info
 ```
 
 ```bash

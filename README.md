@@ -1,4 +1,4 @@
-**A developed deep learning architecture for classification**
+# A developed deep learning architecture for classification
 
 ## Requirements
 - Python
@@ -7,19 +7,18 @@
 
 ## Training
 ```bash
-picpac-import
+### picpac-import
 #Stream data into same image database format
 ```
 ```
 Eg:
 picpac-import -f 2 ImageDirectory db
-
-ImageDirectory contains N subdirectories named 0, 1, ..., each containg images for one category
-Refer to [Picpac](https://github.com/aaalgo/picpac/blob/master/README.md) for more info
+#ImageDirectory contains N subdirectories named 0, 1, ..., each containg images for one category
+#Refer to [picpac](https://github.com/aaalgo/picpac/blob/master/README.md) for more info
 ```
 
 ```bash
-cls-train.py
+### cls-train.py
 #Trainer of images classification, allows evaluation during training
 ```
 ```
@@ -54,7 +53,7 @@ Eg:
 ./cls-train.py --db db.train --split 5 --split_fold 3 
 ```
 ```bash
-fcn-cls-train.py
+### fcn-cls-train.py
 #Trainer of segmented images classification
 ```
 ```
@@ -67,7 +66,7 @@ Other arguments have the same usage as cls-train.py
 ```
 ## Evaluating
 ```bash
-cls-predict.py
+### cls-predict.py
 #Evaluation of classification using cls-train.py
 ```
 ```
@@ -82,7 +81,7 @@ Eg:
 ./cls-predict.py --input ImageDirectory --model model/200000 --channels 1
 ```
 ```bash
-fcn-cls-val.py
+### fcn-cls-val.py
 #Evaluation of classification using fcn-cls-train.py
 ```
 ```

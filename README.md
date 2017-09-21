@@ -11,8 +11,9 @@ Stream data into same image database format
 ```
 Eg:  
 picpac-import -f 2 ImageDirectory db  
-#ImageDirectory contains N subdirectories named 0, 1, ..., each containg images for one category  
-#Refer to [picpac] (#https://github.com/aaalgo/picpac/blob/master/README.md) for more info  
+ImageDirectory contains N subdirectories named 0, 1, ..., each containg images for one category  
+Refer to [picpac](https://github.com/aaalgo/picpac/blob/master/README.md) for more info
+[我的博客](http://blog.csdn.net/guodongxiaren)  
 ```
 ## Training
 ### cls-train.py
@@ -57,6 +58,8 @@ arguments:
 --neg  
 		Training image dataset without labelling  
 Other arguments have the same usage as cls-train.py  
+Eg:
+./fcn-cls-train.py --pos db.pos --neg db.neg
 ```
 ## Evaluating
 ### cls-predict.py

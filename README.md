@@ -7,7 +7,7 @@
 
 ## Importing database
 ### picpac-import
->Stream data into same image database format  
+###### Stream data into same image database format  
 Eg:  
 picpac-import -f 2 ImageDirectory db  
 #ImageDirectory contains N subdirectories named 0, 1, ..., each containg images for one category  

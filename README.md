@@ -13,7 +13,7 @@ Eg:
 picpac-import -f 2 ImageDirectory db  
 ImageDirectory contains N subdirectories named 0, 1, ..., each containg images for one category  
 Refer to [picpac](https://github.com/aaalgo/picpac/blob/master/README.md) for more info
-[我的博客](http://blog.csdn.net/guodongxiaren)  
+[Tensorflow Slim](https://github.com/aaalgo/picpac/tree/master/examples/tensorflow) 
 ```
 ## Training
 ### cls-train.py

@@ -7,7 +7,7 @@
 
 ## Importing database
 ### picpac-import
-#Stream data into same image database format  
+Stream data into same image database format  
 ```
 Eg:  
 picpac-import -f 2 ImageDirectory db  
@@ -16,7 +16,7 @@ picpac-import -f 2 ImageDirectory db
 ```
 ## Training
 ### cls-train.py
-#Trainer of images classification, allows evaluation during training
+Trainer of images classification, allows evaluation during training
 ```
 arguments:  
 --db  
@@ -49,7 +49,7 @@ Eg:
 ./cls-train.py --db db.train --split 5 --split_fold 3  
 ```
 ### fcn-cls-train.py
-#Trainer of segmented images classification  
+Trainer of segmented images classification  
 ```
 arguments:  
 --pos  
@@ -60,7 +60,7 @@ Other arguments have the same usage as cls-train.py
 ```
 ## Evaluating
 ### cls-predict.py
-#Evaluation of classification using cls-train.py  
+Evaluation of classification using cls-train.py  
 ```
 arguments:  
 --input  
@@ -73,7 +73,7 @@ Eg:
 ./cls-predict.py --input ImageDirectory --model model/200000 --channels 1  
 ```
 ### fcn-cls-val.py
-#Evaluation of classification using fcn-cls-train.py  
+Evaluation of classification using fcn-cls-train.py  
 ```
 arguments:  
 --db  

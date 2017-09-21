@@ -1,20 +1,27 @@
 A developed deep learning architecture for classification
 
-Requirements
-Python
-Tensorflow
-PicPac
+## Requirements
+-Python
+-Tensorflow
+-PicPac
 
-Training
-picpac-import, explore
-#Stream data into same image database format
+## Training
+```bash
+-picpac-import, explore
+Stream data into same image database format
+```
+```
 picpac-import -f 2 ImageDirectory db
 		ImageDirectory contains N subdirectories named 0, 1, ..., each containg
 		images for one category
-#Refer to https://github.com/aaalgo/picpac/blob/master/README.md for more info
+Refer to [Picpac](https://github.com/aaalgo/picpac/blob/master/README.md)for more info
+```
 
+```bash
 cls-train.py
-#Trainer of images classification, allows evaluation during training
+Trainer of images classification, allows evaluation during training
+```
+```
 arguments:
 --db
 		Training image database
@@ -44,19 +51,25 @@ optional arguments:
 Eg: 
 ./cls-train.py --db db.train --test_db db.test --classes 2 --channels 1
 ./cls-train.py --db db.train --split 5 --split_fold 3 
-
+```
+```bash
 fcn-cls-train.py
 #Trainer of segmented images classification
+```
+```
 arguments:
 --pos
 		Training image dataset with positive part labelled
 --neg
 		Training image dataset without labelling
 Other arguments have the same usage as cls-train.py
-
-Evaluating
+```
+## Evaluating
+```bash
 cls-predict.py
 #Evaluation of classification using cls-train.py
+```
+```
 arguments:
 --input 
 		Input directory of images, can be any directory
@@ -66,11 +79,14 @@ arguments:
 		Channels of images used
 Eg:
 ./cls-predict.py --input ImageDirectory --model model/200000 --channels 1
-
+```
+```bash
 fcn-cls-val.py
 #Evaluation of classification using fcn-cls-train.py
+```
+```
 arguments:
 --db
 		Evaluation image database
-
+```
 

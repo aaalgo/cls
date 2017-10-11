@@ -30,19 +30,25 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_string('opt','adam', '')
 flags.DEFINE_string('db', 'db', 'database')
+flags.DEFINE_string('mixin', None, 'database')
 flags.DEFINE_string('test_db', None, 'evaluation dataset')
 flags.DEFINE_integer('classes', '2', 'number of classes')
 flags.DEFINE_integer('resize', None, '')
+flags.DEFINE_integer('max_size', None, '')
 flags.DEFINE_integer('channels', 3, '')
 flags.DEFINE_integer('batch', 1, 'Batch size.  ')
-flags.DEFINE_string('net', 'resnet_v1.resnet_v1_101', 'cnn architecture, e.g. vgg.vgg_a')
+flags.DEFINE_string('net', 'resnet_v1.resnet_v1_50', 'cnn architecture, e.g. vgg.vgg_a')
 flags.DEFINE_float('learning_rate', 0.01, 'Initial learning rate.')
+flags.DEFINE_bool('decay', True, '')
+flags.DEFINE_float('decay_rate', 0.95, '')
+flags.DEFINE_float('decay_steps', 10000, '')
 flags.DEFINE_integer('test_steps', 1000, 'Number of steps to run evaluation.')
 flags.DEFINE_integer('save_steps', 1000, 'Number of steps to run evaluation.')
 flags.DEFINE_integer('max_steps', 600000, 'Number of steps to run trainer.')
 flags.DEFINE_string('model', 'model', 'Directory to put the training data.')
 flags.DEFINE_integer('split', 1, 'split into this number of parts for cross-validation')
 flags.DEFINE_integer('split_fold', 1, 'part index for cross-validation')
+flags.DEFINE_integer('max_to_keep', 20, '')
 
 # load network architecture by name
 def inference (inputs, num_classes):
@@ -66,17 +72,22 @@ def fcn_loss (logits, labels):
 
 def training (loss, rate):
     #tf.scalar_summary(loss.op.name, loss)
-	if FLAGS.opt == 'adam':
-		rate /= 100
-		optimizer = tf.train.AdamOptimizer(rate)
-		print('adam!')
-	else:
-		optimizer = tf.train.GradientDescentOptimizer(rate)
-		print('gradient!')
-		pass
    
-	global_step = tf.Variable(0, name='global_step', trainable=False)
-	return optimizer.minimize(loss, global_step=global_step)
+    global_step = tf.Variable(0, name='global_step', trainable=False)
+    if FLAGS.decay:
+        rate = tf.train.exponential_decay(rate, global_step, FLAGS.decay_steps, FLAGS.decay_rate, staircase=True)
+        #tf.summary.scalar('learning_rate', rate)
+
+    if FLAGS.opt == 'adam':
+        rate /= 100
+        optimizer = tf.train.AdamOptimizer(rate)
+        print('adam!')
+    else:
+        optimizer = tf.train.GradientDescentOptimizer(rate)
+        print('gradient!')
+        pass
+
+    return optimizer.minimize(loss, global_step=global_step)
 
 def run_training ():
     try:
@@ -108,6 +119,12 @@ def run_training ():
                 channel_first=False # this is tensorflow specific
                                     # Caffe's dimension order is different.
                 )
+    if not FLAGS.mixin is None:
+        config['mixin'] = FLAGS.mixin
+        config['mixin_group_delta'] = 0
+    if not FLAGS.max_size is None:
+        config['max_size'] = FLAGS.max_size
+
     # training stream
     tr_stream = picpac.ImageStream(FLAGS.db, split_negate=False, perturb=True, loop=True, **config)
     te_stream = None
@@ -143,7 +160,7 @@ def run_training ():
         #    f.write(graph_txt)
         #    pass
 
-        saver = tf.train.Saver()
+        saver = tf.train.Saver(max_to_keep=FLAGS.max_to_keep)
 
         config = tf.ConfigProto()
         config.gpu_options.allow_growth=True
@@ -209,7 +226,7 @@ def run_training ():
                         #print(np.size(np.where(ll == np.max(ll))[1]))
                         #print(ll)
                         accuracy_sum2 += accuracy_value * bs
-						
+                        
                         pass
                     rowsum = np.sum(cmatrix, axis = 1)
                     colsum = np.sum(cmatrix, axis = 0)
@@ -227,7 +244,7 @@ def run_training ():
                     print('confusion matrix divided by col sum:')
                     print(np.divide(cmatrix,np.tile(colsum,(FLAGS.classes,1))))
                     print('confusion matrix divided by row sum:')
-                    print(np.divide(cmatrix,np.tile(rowsum,(FLAGS.classes,1)).transpose()))	
+                    print(np.divide(cmatrix,np.tile(rowsum,(FLAGS.classes,1)).transpose())) 
                 if (step + 1) % FLAGS.save_steps == 0 or (step + 1) == FLAGS.max_steps:
                     ckpt_path = '%s/%d' % (FLAGS.model, (step + 1))
                     saver.save(sess, ckpt_path)

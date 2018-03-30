@@ -124,7 +124,7 @@ def create_picpac_stream (db_path, is_training, size):
                   {"type": "normalize", "mean": [103.94, 116.78, 123.68]},
                   #{"type": "normalize", "mean": 127, "std": 127},
                   {"type": "resize", "size": size},
-                  #{"type": "clip", "size": size, "border_type": "replicate"},
+                  {"type": "clip", "size": size, "border_type": "replicate"},
                   ]
              }
     if is_training and not FLAGS.mixin is None:

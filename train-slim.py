@@ -97,8 +97,7 @@ def setup_finetune (ckpt, exclusions):
             print("    %s" % var.op.name)
 
     return slim.assign_from_checkpoint_fn(
-            ckpt,
-            variables_to_restore,
+            ckpt, variables_to_restore,
             ignore_missing_vars=False), variables_to_train
 
 
@@ -148,6 +147,8 @@ def main (_):
     Y = tf.placeholder(tf.int32, shape=(None, ), name="labels")
     is_training = tf.placeholder(tf.bool, name="is_training")
 
+    #with \
+    #     slim.arg_scope([slim.batch_norm], decay=0.9, epsilon=5e-4): 
     network_fn = get_network_fn(FLAGS.net, num_classes=FLAGS.classes,
                 weight_decay=FLAGS.weight_decay, is_training=is_training)
 

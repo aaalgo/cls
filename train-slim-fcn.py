@@ -55,8 +55,9 @@ flags.DEFINE_string('mixin', None, 'mix-in training db')
 flags.DEFINE_integer('size', None, '') 
 flags.DEFINE_integer('batch', 128, 'Batch size.  ')
 flags.DEFINE_integer('shift', 0, '')
+flags.DEFINE_integer('stride', 16, '')
 
-flags.DEFINE_string('net', 'resnet_v2_50', 'architecture')
+flags.DEFINE_string('backbone', 'resnet_v2_50', 'architecture')
 flags.DEFINE_string('model', None, 'model directory')
 flags.DEFINE_string('resume', None, 'resume training from this model')
 flags.DEFINE_string('finetune', None, '')
@@ -69,7 +70,7 @@ flags.DEFINE_float('decay_steps', 500, '')
 flags.DEFINE_float('weight_decay', 0.00004, '')
 #
 flags.DEFINE_integer('epoch_steps', None, '')
-flags.DEFINE_integer('max_epochs', 200, '')
+flags.DEFINE_integer('max_epochs', 20000, '')
 flags.DEFINE_integer('ckpt_epochs', 10, '')
 flags.DEFINE_integer('val_epochs', 10, '')
 flags.DEFINE_boolean('adam', False, '')
@@ -78,7 +79,9 @@ COLORSPACE = 'BGR'
 PIXEL_MEANS = [127.0, 127.0, 127.0]
 
 
-def cls_loss (logits, labels):
+def fcn_loss (logits, labels):
+    logits = tf.reshape(logits, (-1, FLAGS.classes))
+    labels = tf.reshape(labels, (-1,))
     # cross-entropy
     xe = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels)
     xe = tf.reduce_mean(xe, name='xe')
@@ -124,33 +127,33 @@ def setup_finetune (ckpt, exclusions):
             ignore_missing_vars=False), variables_to_train
 
 
-def create_picpac_stream (db_path, is_training, size):
+def create_picpac_stream (db_path, is_training):
     assert os.path.exists(db_path)
     augments = []
     if is_training:
         augments = [
-                  {"type": "augment.flip", "horizontal": True, "vertical": False},
-                  #{"type": "clip", "shift": 20},
-                  {"type": "resize", "size": size + 20},
+                  #{"type": "augment.flip", "horizontal": True, "vertical": False},
+                  {"type": "augment.rotate", "min":-10, "max":10},
+                  {"type": "augment.scale", "min":0.9, "max":1.1},
+                  {"type": "augment.add", "range":20},
                 ]
     else:
-        augments = [
-                  {"type": "resize", "size": size},
-                ]
+        augments = []
+
     config = {"db": db_path,
               "loop": is_training,
               "shuffle": is_training,
               "reshuffle": is_training,
-              "annotate": False,
+              "annotate": True,
               "channels": 3,
               "stratify": is_training,
               "dtype": "float32",
-              "batch": FLAGS.batch,
+              "batch": 1, #FLAGS.batch,
               "colorspace": COLORSPACE,
               "transforms": augments + [
                   {"type": "normalize", "mean": PIXEL_MEANS},
-                  #{"type": "normalize", "mean": 127, "std": 127},
-                  {"type": "clip", "size": size, "border_type": "replicate"},
+                  {"type": "clip", "round": FLAGS.stride},
+                  {"type": "rasterize"},
                   ]
              }
     if is_training and not FLAGS.mixin is None:
@@ -163,7 +166,7 @@ def create_picpac_stream (db_path, is_training, size):
 
 def main (_):
 
-    logging.basicConfig(filename='train-%s-%s.log' % (FLAGS.net, datetime.datetime.now().strftime('%Y%m%d-%H%M%S')),level=logging.DEBUG, format='%(asctime)s %(message)s')
+    logging.basicConfig(filename='train-%s-%s.log' % (FLAGS.backbone, datetime.datetime.now().strftime('%Y%m%d-%H%M%S')),level=logging.DEBUG, format='%(asctime)s %(message)s')
 
     if FLAGS.model:
         try:
@@ -173,22 +176,24 @@ def main (_):
 
     X = tf.placeholder(tf.float32, shape=(None, None, None, 3), name="images")
     # ground truth labels
-    Y = tf.placeholder(tf.int32, shape=(None, ), name="labels")
+    Y = tf.placeholder(tf.int32, shape=(None, None, None, 1), name="labels")
     is_training = tf.placeholder(tf.bool, name="is_training")
 
     if not FLAGS.finetune:
         patch_arg_scopes()
     #with \
     #     slim.arg_scope([slim.batch_norm], decay=0.9, epsilon=5e-4): 
-    network_fn = nets_factory.get_network_fn(FLAGS.net, num_classes=FLAGS.classes,
+    network_fn = nets_factory.get_network_fn(FLAGS.backbone, num_classes=None,
                 weight_decay=FLAGS.weight_decay, is_training=is_training)
 
-    logits, _ = network_fn(X)
+    ft, _ = network_fn(X, global_pool=False, output_stride=16)
+    logits = slim.conv2d_transpose(ft, FLAGS.classes, 32, 16)
     logits = tf.identity(logits, name='logits')
-    # probability of class 1 -- not very useful if FLAGS.classes > 2
-    probs = tf.squeeze(tf.slice(tf.nn.softmax(logits), [0,1], [-1,1]), 1)
 
-    loss, metrics = cls_loss(logits, Y)
+    # probability of class 1 -- not very useful if FLAGS.classes > 2
+    probs = tf.squeeze(tf.slice(tf.nn.softmax(logits), [0,0,0,1], [-1,-1,-1,1]), 3)
+
+    loss, metrics = fcn_loss(logits, Y)
     metric_names = [x.name[:-2] for x in metrics]
 
     def format_metrics (avg):
@@ -212,13 +217,11 @@ def main (_):
     train_op = slim.learning.create_train_op(loss, optimizer, global_step=global_step, variables_to_train=variables_to_train)
     saver = tf.train.Saver(max_to_keep=FLAGS.max_to_keep)
 
-    if FLAGS.size is None:
-        FLAGS.size = network_fn.default_image_size
-    stream = create_picpac_stream(FLAGS.db, True,  FLAGS.size)
+    stream = create_picpac_stream(FLAGS.db, True)
     # load validation db
     val_stream = None
     if FLAGS.val_db:
-        val_stream = create_picpac_stream(FLAGS.val_db, False, FLAGS.size)
+        val_stream = create_picpac_stream(FLAGS.val_db, False)
 
     config = tf.ConfigProto()
     config.gpu_options.allow_growth=True
@@ -243,8 +246,8 @@ def main (_):
             cnt, metrics_sum = 0, np.array([0] * len(metrics), dtype=np.float32)
             progress = tqdm(range(epoch_steps), leave=False)
             for _ in progress:
-                meta, images = stream.next()
-                feed_dict = {X: images, Y: meta.labels, is_training: True}
+                _, images, labels = stream.next()
+                feed_dict = {X: images, Y: labels, is_training: True}
                 mm, _ = sess.run([metrics, train_op], feed_dict=feed_dict)
                 metrics_sum += np.array(mm) * images.shape[0]
                 cnt += images.shape[0]
@@ -268,8 +271,8 @@ def main (_):
                 cnt, metrics_sum = 0, np.array([0] * len(metrics), dtype=np.float32)
                 val_stream.reset()
                 progress = tqdm(val_stream, leave=False)
-                for meta, images in progress:
-                    feed_dict = {X: images, Y: meta.labels, is_training: False}
+                for _, images, labels in progress:
+                    feed_dict = {X: images, Y: labels, is_training: False}
                     p, mm = sess.run([probs, metrics], feed_dict=feed_dict)
                     metrics_sum += np.array(mm) * images.shape[0]
                     cnt += images.shape[0]
@@ -298,7 +301,7 @@ def main (_):
             if (epoch % FLAGS.ckpt_epochs == 0) and FLAGS.model:
                 ckpt_path = '%s/%d' % (FLAGS.model, epoch)
                 saver.save(sess, ckpt_path)
-                print('saved to %s.' % (step, ckpt_path))
+                print('saved to %s.' % ckpt_path)
             pass
         pass
     pass

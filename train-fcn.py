@@ -13,25 +13,8 @@ from sklearn.metrics import accuracy_score, roc_auc_score
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
 import tensorflow.contrib.slim as slim
-from nets import nets_factory, resnet_utils #import get_network_fn
+import fcn_nets as nets
 import picpac
-
-def patch_arg_scopes ():
-    def resnet_arg_scope (weight_decay=0.0001):
-        print_red("Patching resnet_v2 arg_scope when training from scratch")
-        return resnet_utils.resnet_arg_scope(weight_decay=weight_decay,
-                    batch_norm_decay=0.9,
-                    batch_norm_epsilon=5e-4,
-                    batch_norm_scale=False)
-    nets_factory.arg_scopes_map['resnet_v1_50'] = resnet_arg_scope
-    nets_factory.arg_scopes_map['resnet_v1_101'] = resnet_arg_scope
-    nets_factory.arg_scopes_map['resnet_v1_152'] = resnet_arg_scope
-    nets_factory.arg_scopes_map['resnet_v1_200'] = resnet_arg_scope
-    nets_factory.arg_scopes_map['resnet_v2_50'] = resnet_arg_scope
-    nets_factory.arg_scopes_map['resnet_v2_101'] = resnet_arg_scope
-    nets_factory.arg_scopes_map['resnet_v2_152'] = resnet_arg_scope
-    nets_factory.arg_scopes_map['resnet_v2_200'] = resnet_arg_scope
-    pass
 
 augments = None
 #from . config import *
@@ -57,10 +40,9 @@ flags.DEFINE_integer('batch', 1, 'Batch size.  ')
 flags.DEFINE_integer('shift', 0, '')
 flags.DEFINE_integer('stride', 16, '')
 
-flags.DEFINE_string('backbone', 'resnet_v2_50', 'architecture')
+flags.DEFINE_string('net', 'myunet', 'architecture')
 flags.DEFINE_string('model', None, 'model directory')
 flags.DEFINE_string('resume', None, 'resume training from this model')
-flags.DEFINE_string('finetune', None, '')
 flags.DEFINE_integer('max_to_keep', 100, '')
 
 # optimizer settings
@@ -94,38 +76,6 @@ def fcn_loss (logits, labels):
     # loss
     loss = tf.identity(xe + reg, name='lo')
     return loss, [acc, xe, reg, loss]
-
-def setup_finetune (ckpt, exclusions):
-    print("Finetuning %s" % ckpt)
-    # TODO(sguada) variables.filter_variables()
-    variables_to_restore = []
-    for var in slim.get_model_variables():
-        excluded = False
-        for exclusion in exclusions:
-            if var.op.name.startswith(exclusion):
-                print("Excluding %s" % var.op.name)
-                excluded = True
-                break
-        if not excluded:
-            variables_to_restore.append(var)
-
-    if tf.gfile.IsDirectory(ckpt):
-        ckpt = tf.train.latest_checkpoint(ckpt)
-
-    variables_to_train = []
-    for scope in exclusions:
-        variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
-        variables_to_train.extend(variables)
-
-    print("Training %d out of %d variables" % (len(variables_to_train), len(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES))))
-    if len(variables_to_train) < 10:
-        for var in variables_to_train:
-            print("    %s" % var.op.name)
-
-    return slim.assign_from_checkpoint_fn(
-            ckpt, variables_to_restore,
-            ignore_missing_vars=False), variables_to_train
-
 
 def create_picpac_stream (db_path, is_training):
     assert os.path.exists(db_path)
@@ -166,7 +116,7 @@ def create_picpac_stream (db_path, is_training):
 
 def main (_):
 
-    logging.basicConfig(filename='train-%s-%s.log' % (FLAGS.backbone, datetime.datetime.now().strftime('%Y%m%d-%H%M%S')),level=logging.DEBUG, format='%(asctime)s %(message)s')
+    logging.basicConfig(filename='train-%s-%s.log' % (FLAGS.net, datetime.datetime.now().strftime('%Y%m%d-%H%M%S')),level=logging.DEBUG, format='%(asctime)s %(message)s')
 
     if FLAGS.model:
         try:
@@ -179,16 +129,14 @@ def main (_):
     Y = tf.placeholder(tf.int32, shape=(None, None, None, 1), name="labels")
     is_training = tf.placeholder(tf.bool, name="is_training")
 
-    if not FLAGS.finetune:
-        patch_arg_scopes()
     #with \
     #     slim.arg_scope([slim.batch_norm], decay=0.9, epsilon=5e-4): 
-    network_fn = nets_factory.get_network_fn(FLAGS.backbone, num_classes=None,
-                weight_decay=FLAGS.weight_decay, is_training=is_training)
 
-    ft, _ = network_fn(X, global_pool=False, output_stride=16)
-    logits = slim.conv2d_transpose(ft, FLAGS.classes, 32, 16)
-    logits = tf.identity(logits, name='logits')
+    with slim.arg_scope([slim.conv2d, slim.conv2d_transpose, slim.max_pool2d],
+                            padding='SAME'), \
+                                    slim.arg_scope([slim.conv2d, slim.conv2d_transpose], weights_regularizer=slim.l2_regularizer(2.5e-4), normalizer_fn=slim.batch_norm, normalizer_params={'decay': 0.9, 'epsilon': 5e-4, 'scale': False, 'is_training':is_training}), \
+         slim.arg_scope([slim.batch_norm], is_training=is_training):
+        logits, FLAGS.stride = getattr(nets, FLAGS.net)(X)
 
     # probability of class 1 -- not very useful if FLAGS.classes > 2
     probs = tf.squeeze(tf.slice(tf.nn.softmax(logits), [0,0,0,1], [-1,-1,-1,1]), 3)
@@ -199,13 +147,6 @@ def main (_):
     def format_metrics (avg):
         return ' '.join(['%s=%.3f' % (a, b) for a, b in zip(metric_names, list(avg))])
 
-    init_finetune, variables_to_train = None, None
-    if FLAGS.finetune:
-        print_red("finetune, using RGB with vgg pixel means")
-        COLORSPACE = 'RGB'
-        PIXEL_MEANS = [103.94, 116.78, 123.68]
-        init_finetune, variables_to_train = setup_finetune(FLAGS.finetune, [FLAGS.net + '/logits'])
-
     global_step = tf.train.create_global_step()
     LR = tf.train.exponential_decay(FLAGS.lr, global_step, FLAGS.decay_steps, FLAGS.decay_rate, staircase=True)
     if FLAGS.adam:
@@ -214,7 +155,7 @@ def main (_):
     else:
         optimizer = tf.train.MomentumOptimizer(learning_rate=LR, momentum=0.9)
 
-    train_op = slim.learning.create_train_op(loss, optimizer, global_step=global_step, variables_to_train=variables_to_train)
+    train_op = slim.learning.create_train_op(loss, optimizer, global_step=global_step)
     saver = tf.train.Saver(max_to_keep=FLAGS.max_to_keep)
 
     stream = create_picpac_stream(FLAGS.db, True)
@@ -233,8 +174,6 @@ def main (_):
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
         sess.run(tf.local_variables_initializer())
-        if init_finetune:
-            init_finetune(sess)
         if FLAGS.resume:
             saver.restore(sess, FLAGS.resume)
 

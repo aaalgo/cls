@@ -70,7 +70,9 @@ def main (_):
     X = tf.placeholder(tf.float32, shape=(None, None, None, 3), name="images")
     is_training = tf.placeholder(tf.bool, name="is_training")
     model = Model(X, is_training, FLAGS.model, 'xxx')
-    with tf.Session() as sess:
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth=True
+    with tf.Session(config=config) as sess:
         model.loader(sess)
         image = cv2.imread(FLAGS.input, -1)
         if model.is_fcn:    # clip image to multiple of strides

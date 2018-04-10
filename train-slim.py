@@ -11,8 +11,22 @@ from sklearn.metrics import accuracy_score, roc_auc_score
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
 import tensorflow.contrib.slim as slim
-from nets.nets_factory import get_network_fn
+from nets import nets_factory, resnet_utils #import get_network_fn
 import picpac
+
+def patch_arg_scopes ():
+    def resnet_arg_scope (weight_decay=0.0001):
+        print_red("Patching resnet_v2 arg_scope when training from scratch")
+        return resnet_utils.resnet_arg_scope(weight_decay=weight_decay,
+                    batch_norm_decay=0.9,
+                    batch_norm_epsilon=5e-4,
+                    batch_norm_scale=False)
+    nets_factory.arg_scopes_map['resnet_v2_50'] = resnet_arg_scope
+    nets_factory.arg_scopes_map['resnet_v2_101'] = resnet_arg_scope
+    nets_factory.arg_scopes_map['resnet_v2_152'] = resnet_arg_scope
+    nets_factory.arg_scopes_map['resnet_v2_200'] = resnet_arg_scope
+    pass
+
 
 augments = None
 #from . config import *
@@ -49,6 +63,7 @@ flags.DEFINE_float('decay_rate', 0.95, '')
 flags.DEFINE_float('decay_steps', 500, '')
 flags.DEFINE_float('weight_decay', 0.00004, '')
 #
+flags.DEFINE_integer('epoch_steps', None, '')
 flags.DEFINE_integer('max_epochs', 200, '')
 flags.DEFINE_integer('ckpt_epochs', 10, '')
 flags.DEFINE_integer('val_epochs', 10, '')
@@ -108,6 +123,11 @@ def create_picpac_stream (db_path, is_training, size):
         augments = [
                   {"type": "augment.flip", "horizontal": True, "vertical": False},
                   #{"type": "clip", "shift": 20},
+                  {"type": "resize", "size": size + 20},
+                ]
+    else:
+        augments = [
+                  {"type": "resize", "size": size},
                 ]
     config = {"db": db_path,
               "loop": is_training,
@@ -122,7 +142,6 @@ def create_picpac_stream (db_path, is_training, size):
               "transforms": augments + [
                   {"type": "normalize", "mean": [103.94, 116.78, 123.68]},
                   #{"type": "normalize", "mean": 127, "std": 127},
-                  {"type": "resize", "size": size},
                   {"type": "clip", "size": size, "border_type": "replicate"},
                   ]
              }
@@ -147,9 +166,11 @@ def main (_):
     Y = tf.placeholder(tf.int32, shape=(None, ), name="labels")
     is_training = tf.placeholder(tf.bool, name="is_training")
 
+    if not FLAGS.finetune:
+        patch_arg_scopes()
     #with \
     #     slim.arg_scope([slim.batch_norm], decay=0.9, epsilon=5e-4): 
-    network_fn = get_network_fn(FLAGS.net, num_classes=FLAGS.classes,
+    network_fn = nets_factory.get_network_fn(FLAGS.net, num_classes=FLAGS.classes,
                 weight_decay=FLAGS.weight_decay, is_training=is_training)
 
     logits, _ = network_fn(X)
@@ -188,7 +209,9 @@ def main (_):
     config = tf.ConfigProto()
     config.gpu_options.allow_growth=True
 
-    epoch_steps = (stream.size() + FLAGS.batch-1) // FLAGS.batch
+    epoch_steps = FLAGS.epoch_steps
+    if epoch_steps is None:
+        epoch_steps = (stream.size() + FLAGS.batch-1) // FLAGS.batch
     best = 0
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())

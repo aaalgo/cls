@@ -6,7 +6,7 @@ import time
 from tqdm import tqdm
 import numpy as np
 import cv2
-from sklearn.metrics import accuracy_score, auc
+from sklearn.metrics import accuracy_score, roc_auc_score
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
 import tensorflow.contrib.slim as slim
@@ -48,6 +48,7 @@ flags.DEFINE_float('lr', 0.02, 'Initial learning rate.')
 flags.DEFINE_float('decay_rate', 0.95, '')
 flags.DEFINE_float('decay_steps', 500, '')
 #
+flags.DEFINE_integer('epoch_steps', None, '')
 flags.DEFINE_integer('max_epochs', 200, '')
 flags.DEFINE_integer('ckpt_epochs', 10, '')
 flags.DEFINE_integer('val_epochs', 10, '')
@@ -143,7 +144,9 @@ def main (_):
     config = tf.ConfigProto()
     config.gpu_options.allow_growth=True
 
-    epoch_steps = (stream.size() + FLAGS.batch-1) // FLAGS.batch
+    epoch_steps = FLAGS.epoch_steps
+    if epoch_steps is None:
+        epoch_steps = (stream.size() + FLAGS.batch-1) // FLAGS.batch
     best = 0
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
@@ -201,7 +204,7 @@ def main (_):
                     # display scikit-learn metrics
                     Ys = np.array(Ys, dtype=np.int32)
                     Ps = np.array(Ps, dtype=np.float32)
-                    msg += ' sk_acc=%.3f auc=%.3f' % (accuracy_score(Ys, Ps > 0.5), auc(Ys, Ps, reorder=True))
+                    msg += ' sk_acc=%.3f auc=%.3f' % (accuracy_score(Ys, Ps > 0.5), roc_auc_score(Ys, Ps))
                     pass
                 msg += ' lr=%.4f best=%.3f' % (lr, best)
                 print_red(msg)
@@ -216,5 +219,8 @@ def main (_):
     pass
 
 if __name__ == '__main__':
-    tf.app.run()
+    try:
+        tf.app.run()
+    except KeyboardInterrupt:
+        pass
 

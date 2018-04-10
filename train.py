@@ -88,7 +88,6 @@ def create_picpac_stream (db_path, is_training):
               "dtype": "float32",
               "batch": FLAGS.batch,
               "transforms": augments + [
-                  {"type": "normalize", "mean": 127, "std": 127},
                   #{"type": "resize", "size": FLAGS.size},
                   {"type": "clip", "size": FLAGS.size, "shift": shift, "border_type": "replicate"},
                   ]
@@ -110,6 +109,7 @@ def main (_):
             pass
 
     X = tf.placeholder(tf.float32, shape=(None, None, None, FLAGS.channels), name="images")
+    X = X - 127.0
     # ground truth labels
     Y = tf.placeholder(tf.int32, shape=(None, ), name="labels")
     is_training = tf.placeholder(tf.bool, name="is_training")

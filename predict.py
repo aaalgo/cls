@@ -39,7 +39,6 @@ flags.DEFINE_string('input', None, '')
 flags.DEFINE_string('name', 'logits:0', '')
 flags.DEFINE_float('cth', 0.5, '')
 flags.DEFINE_integer('stride', 16, '')
-flags.DEFINE_float('mean_pixel', 127, '')
 
 
 def save_prediction_image (path, image, prob):
@@ -81,7 +80,6 @@ def main (_):
             W = W // FLAGS.stride * FLAGS.stride
             image = image[:H, :W, :]
         batch = np.expand_dims(image, axis=0).astype(dtype=np.float32)
-        batch -= FLAGS.mean_pixel
         prob = sess.run(model.prob, feed_dict={X: batch, is_training: False})
         if len(prob.shape) == 1:
             print(prob[0])

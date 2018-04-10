@@ -27,7 +27,6 @@ def patch_arg_scopes ():
     nets_factory.arg_scopes_map['resnet_v2_200'] = resnet_arg_scope
     pass
 
-
 augments = None
 #from . config import *
 #if os.path.exists('config.py'):
@@ -68,6 +67,9 @@ flags.DEFINE_integer('max_epochs', 200, '')
 flags.DEFINE_integer('ckpt_epochs', 10, '')
 flags.DEFINE_integer('val_epochs', 10, '')
 flags.DEFINE_boolean('adam', False, '')
+
+COLORSPACE = 'BGR'
+PIXEL_MEANS = [127.0, 127.0, 127.0]
 
 
 def cls_loss (logits, labels):
@@ -138,9 +140,9 @@ def create_picpac_stream (db_path, is_training, size):
               "stratify": is_training,
               "dtype": "float32",
               "batch": FLAGS.batch,
-              "colorspace": "RGB",
+              "colorspace": COLORSPACE,
               "transforms": augments + [
-                  {"type": "normalize", "mean": [103.94, 116.78, 123.68]},
+                  {"type": "normalize", "mean": PIXEL_MEANS},
                   #{"type": "normalize", "mean": 127, "std": 127},
                   {"type": "clip", "size": size, "border_type": "replicate"},
                   ]
@@ -185,6 +187,9 @@ def main (_):
 
     init_finetune, variables_to_train = None, None
     if FLAGS.finetune:
+        print_red("finetune, using RGB with vgg pixel means")
+        COLORSPACE = 'RGB'
+        PIXEL_MEANS = [103.94, 116.78, 123.68]
         init_finetune, variables_to_train = setup_finetune(FLAGS.finetune, [FLAGS.net + '/logits'])
 
     global_step = tf.train.create_global_step()

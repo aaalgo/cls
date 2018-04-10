@@ -4,6 +4,8 @@ import sys
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'models/research/slim'))
 import time
+import datetime
+import logging
 from tqdm import tqdm
 import numpy as np
 import cv2
@@ -21,6 +23,10 @@ def patch_arg_scopes ():
                     batch_norm_decay=0.9,
                     batch_norm_epsilon=5e-4,
                     batch_norm_scale=False)
+    nets_factory.arg_scopes_map['resnet_v1_50'] = resnet_arg_scope
+    nets_factory.arg_scopes_map['resnet_v1_101'] = resnet_arg_scope
+    nets_factory.arg_scopes_map['resnet_v1_152'] = resnet_arg_scope
+    nets_factory.arg_scopes_map['resnet_v1_200'] = resnet_arg_scope
     nets_factory.arg_scopes_map['resnet_v2_50'] = resnet_arg_scope
     nets_factory.arg_scopes_map['resnet_v2_101'] = resnet_arg_scope
     nets_factory.arg_scopes_map['resnet_v2_152'] = resnet_arg_scope
@@ -157,6 +163,8 @@ def create_picpac_stream (db_path, is_training, size):
 
 def main (_):
 
+    logging.basicConfig(filename='train-%s-%s.log' % (FLAGS.net, datetime.datetime.now().strftime('%Y%m%d-%H%M%S')),level=logging.DEBUG, format='%(asctime)s %(message)s')
+
     if FLAGS.model:
         try:
             os.makedirs(FLAGS.model)
@@ -228,6 +236,7 @@ def main (_):
 
         global_start_time = time.time()
         epoch = 0
+        step = 0
         while epoch < FLAGS.max_epochs:
             start_time = time.time()
             cnt, metrics_sum = 0, np.array([0] * len(metrics), dtype=np.float32)
@@ -240,12 +249,14 @@ def main (_):
                 cnt += images.shape[0]
                 metrics_txt = format_metrics(metrics_sum/cnt)
                 progress.set_description(metrics_txt)
+                step += 1
                 pass
             stop = time.time()
-            msg = 'train epoch=%d ' % epoch
+            msg = 'train epoch=%d step=%d ' % (epoch, step)
             msg += metrics_txt
             msg += ' elapsed=%.3f time=%.3f ' % (stop - global_start_time, stop - start_time)
             print_green(msg)
+            logging.info(msg)
 
             epoch += 1
 
@@ -270,7 +281,7 @@ def main (_):
                 avg = metrics_sum / cnt
                 if avg[0] > best:
                     best = avg[0]
-                msg = 'valid epoch=%d ' % (epoch-1)
+                msg = 'valid epoch=%d step=%d ' % (epoch-1, step)
                 msg += metrics_txt
                 if FLAGS.classes == 2:
                     # display scikit-learn metrics
@@ -280,6 +291,7 @@ def main (_):
                     pass
                 msg += ' lr=%.4f best=%.3f' % (lr, best)
                 print_red(msg)
+                logging.info(msg)
                 #log.write('%d\t%s\t%.4f\n' % (epoch, '\t'.join(['%.4f' % x for x in avg]), best))
             # model saving
             if (epoch % FLAGS.ckpt_epochs == 0) and FLAGS.model:

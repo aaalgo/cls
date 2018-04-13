@@ -75,8 +75,8 @@ flags.DEFINE_integer('val_epochs', 10, '')
 flags.DEFINE_boolean('adam', False, '')
 
 COLORSPACE = 'BGR'
-PIXEL_MEANS = np.array([[[127.0, 127.0, 127.0]]])
-VGG_PIXEL_MEANS = np.array([[[103.94, 116.78, 123.68]]])
+PIXEL_MEANS = tf.constant([[[[127.0, 127.0, 127.0]]]])
+VGG_PIXEL_MEANS = tf.constant([[[[103.94, 116.78, 123.68]]]])
 
 def cls_loss (logits, labels):
     # cross-entropy
@@ -177,7 +177,6 @@ def main (_):
         PIXEL_MEANS = VGG_PIXEL_MEANS
 
     X = tf.placeholder(tf.float32, shape=(None, None, None, 3), name="images")
-    X = X - PIXEL_MEANS
     # ground truth labels
     Y = tf.placeholder(tf.int32, shape=(None, ), name="labels")
     is_training = tf.placeholder(tf.bool, name="is_training")
@@ -189,7 +188,7 @@ def main (_):
     network_fn = nets_factory.get_network_fn(FLAGS.net, num_classes=FLAGS.classes,
                 weight_decay=FLAGS.weight_decay, is_training=is_training)
 
-    logits, _ = network_fn(X)
+    logits, _ = network_fn(X-PIXEL_MEANS)
     logits = tf.identity(logits, name='logits')
     # probability of class 1 -- not very useful if FLAGS.classes > 2
     probs = tf.squeeze(tf.slice(tf.nn.softmax(logits), [0,1], [-1,1]), 1)

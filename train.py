@@ -109,7 +109,6 @@ def main (_):
             pass
 
     X = tf.placeholder(tf.float32, shape=(None, None, None, FLAGS.channels), name="images")
-    X = X - 127.0
     # ground truth labels
     Y = tf.placeholder(tf.int32, shape=(None, ), name="labels")
     is_training = tf.placeholder(tf.bool, name="is_training")
@@ -117,7 +116,7 @@ def main (_):
     # load network
     with slim.arg_scope([slim.conv2d], weights_regularizer=slim.l2_regularizer(2.5e-4)), \
          slim.arg_scope([slim.batch_norm], decay=0.9, epsilon=5e-4): 
-        logits = getattr(nets, FLAGS.net)(X, is_training, FLAGS.classes)
+        logits = getattr(nets, FLAGS.net)(X-127, is_training, FLAGS.classes)
         # probability of class 1 -- not very useful if FLAGS.classes > 2
         probs = tf.squeeze(tf.slice(tf.nn.softmax(logits), [0,1], [-1,1]), 1)
 

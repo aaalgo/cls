@@ -76,7 +76,7 @@ flags.DEFINE_integer('val_epochs', 10, '')
 flags.DEFINE_boolean('adam', False, '')
 
 COLORSPACE = 'BGR'
-PIXEL_MEANS = [127.0, 127.0, 127.0]
+PIXEL_MEANS = np.array([[[127.0, 127.0, 127.0]]])
 VGG_PIXEL_MEANS = np.array([[[103.94, 116.78, 123.68]]])
 
 

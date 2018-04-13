@@ -73,7 +73,7 @@ def main (_):
     config.gpu_options.allow_growth=True
     with tf.Session(config=config) as sess:
         model.loader(sess)
-        image = cv2.imread(FLAGS.input, -1)
+        image = cv2.imread(FLAGS.input, cv2.IMREAD_COLOR)
         if model.is_fcn:    # clip image to multiple of strides
             H, W = image.shape[:2]
             H = H // FLAGS.stride * FLAGS.stride

@@ -58,7 +58,8 @@ flags.DEFINE_integer('val_epochs', 10, '')
 flags.DEFINE_boolean('adam', False, '')
 
 COLORSPACE = 'BGR'
-PIXEL_MEANS = [127.0, 127.0, 127.0]
+PIXEL_MEANS = np.array([[[127.0, 127.0, 127.0]]])
+VGG_PIXEL_MEANS = np.array([[[103.94, 116.78, 123.68]]])
 
 
 def fcn_loss (logits, labels):
@@ -101,7 +102,6 @@ def create_picpac_stream (db_path, is_training):
               "batch": FLAGS.batch,
               "colorspace": COLORSPACE,
               "transforms": augments + [
-                  {"type": "normalize", "mean": PIXEL_MEANS},
                   {"type": "clip", "round": FLAGS.stride},
                   {"type": "rasterize"},
                   ]
@@ -115,6 +115,7 @@ def create_picpac_stream (db_path, is_training):
     return picpac.ImageStream(config)
 
 def main (_):
+    global PIXEL_MEANS
 
     logging.basicConfig(filename='train-%s-%s.log' % (FLAGS.net, datetime.datetime.now().strftime('%Y%m%d-%H%M%S')),level=logging.DEBUG, format='%(asctime)s %(message)s')
 
@@ -125,6 +126,7 @@ def main (_):
             pass
 
     X = tf.placeholder(tf.float32, shape=(None, None, None, 3), name="images")
+    X = X - PIXEL_MEANS
     # ground truth labels
     Y = tf.placeholder(tf.int32, shape=(None, None, None, 1), name="labels")
     is_training = tf.placeholder(tf.bool, name="is_training")

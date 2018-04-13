@@ -58,8 +58,10 @@ flags.DEFINE_integer('val_epochs', 10, '')
 flags.DEFINE_boolean('adam', False, '')
 
 COLORSPACE = 'BGR'
-PIXEL_MEANS = np.array([[[127.0, 127.0, 127.0]]])
-VGG_PIXEL_MEANS = np.array([[[103.94, 116.78, 123.68]]])
+#PIXEL_MEANS = np.array([[[[127.0, 127.0, 127.0]]]])
+#VGG_PIXEL_MEANS = np.array([[[[103.94, 116.78, 123.68]]]])
+PIXEL_MEANS = tf.constant([[[[127.0, 127.0, 127.0]]]])
+VGG_PIXEL_MEANS = tf.constant([[[[103.94, 116.78, 123.68]]]])
 
 
 def fcn_loss (logits, labels):
@@ -126,7 +128,7 @@ def main (_):
             pass
 
     X = tf.placeholder(tf.float32, shape=(None, None, None, 3), name="images")
-    X = X - PIXEL_MEANS
+
     # ground truth labels
     Y = tf.placeholder(tf.int32, shape=(None, None, None, 1), name="labels")
     is_training = tf.placeholder(tf.bool, name="is_training")
@@ -138,7 +140,7 @@ def main (_):
                             padding='SAME'), \
                                     slim.arg_scope([slim.conv2d, slim.conv2d_transpose], weights_regularizer=slim.l2_regularizer(2.5e-4), normalizer_fn=slim.batch_norm, normalizer_params={'decay': 0.9, 'epsilon': 5e-4, 'scale': False, 'is_training':is_training}), \
          slim.arg_scope([slim.batch_norm], is_training=is_training):
-        logits, FLAGS.stride = getattr(nets, FLAGS.net)(X)
+        logits, FLAGS.stride = getattr(nets, FLAGS.net)(X-PIXEL_MEANS)
 
     # probability of class 1 -- not very useful if FLAGS.classes > 2
     probs = tf.squeeze(tf.slice(tf.nn.softmax(logits), [0,0,0,1], [-1,-1,-1,1]), 3)

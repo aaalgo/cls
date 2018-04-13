@@ -181,7 +181,6 @@ def main (_):
         PIXEL_MEANS = VGG_PIXEL_MEANS
 
     X = tf.placeholder(tf.float32, shape=(None, None, None, 3), name="images")
-    X = X - PIXEL_MEANS
     # ground truth labels
     Y = tf.placeholder(tf.int32, shape=(None, None, None, 1), name="labels")
     is_training = tf.placeholder(tf.bool, name="is_training")
@@ -193,7 +192,7 @@ def main (_):
     network_fn = nets_factory.get_network_fn(FLAGS.backbone, num_classes=None,
                 weight_decay=FLAGS.weight_decay, is_training=is_training)
 
-    ft, _ = network_fn(X, global_pool=False, output_stride=16)
+    ft, _ = network_fn(X-PIXEL_MEANS, global_pool=False, output_stride=16)
     logits = slim.conv2d_transpose(ft, FLAGS.classes, 32, 16)
     logits = tf.identity(logits, name='logits')
 

@@ -208,8 +208,6 @@ def main (_):
     init_finetune, variables_to_train = None, None
     if FLAGS.finetune:
         print_red("finetune, using RGB with vgg pixel means")
-        COLORSPACE = 'RGB'
-        PIXEL_MEANS = [103.94, 116.78, 123.68]
         init_finetune, variables_to_train = setup_finetune(FLAGS.finetune, [FLAGS.net + '/logits'])
 
     global_step = tf.train.create_global_step()

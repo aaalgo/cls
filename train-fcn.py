@@ -61,7 +61,6 @@ COLORSPACE = 'BGR'
 #PIXEL_MEANS = np.array([[[[127.0, 127.0, 127.0]]]])
 #VGG_PIXEL_MEANS = np.array([[[[103.94, 116.78, 123.68]]]])
 PIXEL_MEANS = tf.constant([[[[127.0, 127.0, 127.0]]]])
-VGG_PIXEL_MEANS = tf.constant([[[[103.94, 116.78, 123.68]]]])
 
 
 def fcn_loss (logits, labels):

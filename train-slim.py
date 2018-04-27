@@ -75,8 +75,8 @@ flags.DEFINE_integer('val_epochs', 10, '')
 flags.DEFINE_boolean('adam', False, '')
 
 COLORSPACE = 'BGR'
-PIXEL_MEANS = [127.0, 127.0, 127.0]
-
+PIXEL_MEANS = tf.constant([[[[127.0, 127.0, 127.0]]]])
+VGG_PIXEL_MEANS = tf.constant([[[[103.94, 116.78, 123.68]]]])
 
 def cls_loss (logits, labels):
     # cross-entropy
@@ -148,7 +148,6 @@ def create_picpac_stream (db_path, is_training, size):
               "batch": FLAGS.batch,
               "colorspace": COLORSPACE,
               "transforms": augments + [
-                  {"type": "normalize", "mean": PIXEL_MEANS},
                   #{"type": "normalize", "mean": 127, "std": 127},
                   {"type": "clip", "size": size, "border_type": "replicate"},
                   ]
@@ -162,6 +161,7 @@ def create_picpac_stream (db_path, is_training, size):
     return picpac.ImageStream(config)
 
 def main (_):
+    global PIXEL_MEANS
 
     logging.basicConfig(filename='train-%s-%s.log' % (FLAGS.net, datetime.datetime.now().strftime('%Y%m%d-%H%M%S')),level=logging.DEBUG, format='%(asctime)s %(message)s')
 
@@ -170,6 +170,11 @@ def main (_):
             os.makedirs(FLAGS.model)
         except:
             pass
+
+    if FLAGS.finetune:
+        print_red("finetune, using RGB with vgg pixel means")
+        COLORSPACE = 'RGB'
+        PIXEL_MEANS = VGG_PIXEL_MEANS
 
     X = tf.placeholder(tf.float32, shape=(None, None, None, 3), name="images")
     # ground truth labels
@@ -183,7 +188,7 @@ def main (_):
     network_fn = nets_factory.get_network_fn(FLAGS.net, num_classes=FLAGS.classes,
                 weight_decay=FLAGS.weight_decay, is_training=is_training)
 
-    logits, _ = network_fn(X)
+    logits, _ = network_fn(X-PIXEL_MEANS)
     logits = tf.identity(logits, name='logits')
     # probability of class 1 -- not very useful if FLAGS.classes > 2
     probs = tf.squeeze(tf.slice(tf.nn.softmax(logits), [0,1], [-1,1]), 1)
@@ -197,8 +202,6 @@ def main (_):
     init_finetune, variables_to_train = None, None
     if FLAGS.finetune:
         print_red("finetune, using RGB with vgg pixel means")
-        COLORSPACE = 'RGB'
-        PIXEL_MEANS = [103.94, 116.78, 123.68]
         init_finetune, variables_to_train = setup_finetune(FLAGS.finetune, [FLAGS.net + '/logits'])
 
     global_step = tf.train.create_global_step()

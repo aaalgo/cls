@@ -35,6 +35,7 @@ flags.DEFINE_string('db', None, 'training db')
 flags.DEFINE_string('val_db', None, 'validation db')
 flags.DEFINE_integer('classes', 2, 'number of classes')
 flags.DEFINE_string('mixin', None, 'mix-in training db')
+flags.DEFINE_integer('channels', 3, 'number of channels')
 
 flags.DEFINE_integer('size', None, '') 
 flags.DEFINE_integer('batch', 1, 'Batch size.  ')
@@ -58,11 +59,13 @@ flags.DEFINE_integer('ckpt_epochs', 10, '')
 flags.DEFINE_integer('val_epochs', 10, '')
 flags.DEFINE_boolean('adam', False, '')
 ##generate gallery or not 
-flags.DEFINE_integer('gallery', 0, '')
-flags.DEFINE_string('output', None, '')
+flags.DEFINE_string('gallery', None, '')
+flags.DEFINE_integer('gallery_max', 200, '')
 
 COLORSPACE = 'BGR'
-PIXEL_MEANS = [127.0, 127.0, 127.0]
+#PIXEL_MEANS = np.array([[[[127.0, 127.0, 127.0]]]])
+#VGG_PIXEL_MEANS = np.array([[[[103.94, 116.78, 123.68]]]])
+PIXEL_MEANS = tf.constant([[[[127.0, 127.0, 127.0]]]])
 
 
 def fcn_loss (logits, labels):
@@ -83,83 +86,43 @@ def fcn_loss (logits, labels):
 
 def create_picpac_stream (db_path, is_training):
     assert os.path.exists(db_path)
-    if FLAGS.gallery != 0:
-        config = {"db": db_path,
-                  "loop": False,
-                  "channels": 1,
-                  "batch": 1,
-                  "dtype": "uint8",
-                  "transforms": [
-                      {"type": "augment.flip", "horizontal": True, "vertical": True},
-                      {"type": "augment.rotate", "min":-10, "max":10},
-                      {"type": "augment.scale", "min":0.9, "max":1.1},
-                      #{"type": "clip", "size": 32, "shift": 10},
-                      #{"type": "clip", "round": 16},
-                      #{"type": "colorspace", "code": "BGR2HSV", "mul0": 1.0/255},
-                      #{"type": "augment.add", "range1":100, "range2": 10},
-                      #{"type": "colorspace", "code": "HSV2BGR", "mul1": 255.0},
-                      #{"type": "circle_regression"},
-                      #{"type": "draw_circle_regression"},
-                      #{"type": "rasterize", "copy": 0, "use_palette": True, "thickness": 2}
-                      #{"type": "rasterize", "use_palette": True, "thickness": 2}
-                  ]
-                 }
-        stream = picpac.ImageStream(config)
-        C = 0
-        gal = Gallery(FLAGS.output,ext='.png')
-        for _, images  in stream:
-            image = images[0]
-            print(type(image), image.shape) #, type(anno))
-            #print(image.dtype, anno.dtype)
-            #print(np.mean(image[:, :, 0]), np.mean(image[:, :, 1]), np.mean(image[:, :, 2]))
-            C += 1
-            #print('%d / %d' % (C, stream.size()))
-            cv2.imwrite(gal.next(), image)
-            #cv2.imwrite(gal.next(), anno)
-            #cv2.imwrite(gal.next(), label * 255)
-            #cv2.imwrite(gal.next(), draw)
-            if C == 200:
-                break
-            pass
-        gal.flush()
-        sys.exit(0)
-    else:
-        augments = []
-        if is_training:
-            augments = [
+    augments = []
+    if is_training:
+        augments = [
                   {"type": "augment.flip", "horizontal": True, "vertical": True},
                   {"type": "augment.rotate", "min":-10, "max":10},
                   {"type": "augment.scale", "min":0.9, "max":1.1},
                   {"type": "augment.add", "range":20},
                 ]
-        else:
-            augments = []
+    else:
+        augments = []
 
-        config = {"db": db_path,
-                  "loop": is_training,
-                  "shuffle": is_training,
-                  "reshuffle": is_training,
-                  "annotate": True,
-                  "channels": 1,
-                  "stratify": is_training,
-                  "dtype": "float32",
-                  "batch": FLAGS.batch,
-                  "colorspace": COLORSPACE,
-                  "transforms": augments + [
-                      {"type": "normalize", "mean": PIXEL_MEANS},
-                      {"type": "clip", "round": FLAGS.stride},
-                      {"type": "rasterize"},
-                      ]
-                 }
-        if is_training and not FLAGS.mixin is None:
-            print("mixin support is incomplete in new picpac.")
-        #    assert os.path.exists(FLAGS.mixin)
-        #    picpac_config['mixin'] = FLAGS.mixin
-        #    picpac_config['mixin_group_delta'] = 1
-        #    pass
-        return picpac.ImageStream(config)
+    config = {"db": db_path,
+              "loop": is_training,
+              "shuffle": is_training,
+              "reshuffle": is_training,
+              "annotate": True,
+              "channels": FLAGS.channels,
+              "stratify": is_training,
+              "dtype": "float32",
+              "batch": FLAGS.batch,
+              "colorspace": COLORSPACE,
+              "transforms": augments + [
+                  {"type": "clip", "round": FLAGS.stride},
+                  {"type": "rasterize"},
+                  ]
+             }
+    if is_training and not FLAGS.mixin is None:
+        print("mixin support is incomplete in new picpac.")
+    #    assert os.path.exists(FLAGS.mixin)
+    #    picpac_config['mixin'] = FLAGS.mixin
+    #    picpac_config['mixin_group_delta'] = 1
+    #    pass
+    return picpac.ImageStream(config)
 
 def main (_):
+    global PIXEL_MEANS
+
     logging.basicConfig(filename='train-%s-%s.log' % (FLAGS.net, datetime.datetime.now().strftime('%Y%m%d-%H%M%S')),level=logging.DEBUG, format='%(asctime)s %(message)s')
 
     if FLAGS.model:
@@ -168,8 +131,8 @@ def main (_):
         except:
             pass
 
-    #X = tf.placeholder(tf.float32, shape=(None, None, None, 3), name="images")
-    X = tf.placeholder(tf.float32, shape=(None, None, None, 1), name="images")
+    X = tf.placeholder(tf.float32, shape=(None, None, None, FLAGS.channels), name="images")
+
     # ground truth labels
     Y = tf.placeholder(tf.int32, shape=(None, None, None, 1), name="labels")
     is_training = tf.placeholder(tf.bool, name="is_training")
@@ -181,7 +144,7 @@ def main (_):
                             padding='SAME'), \
                                     slim.arg_scope([slim.conv2d, slim.conv2d_transpose], weights_regularizer=slim.l2_regularizer(2.5e-4), normalizer_fn=slim.batch_norm, normalizer_params={'decay': 0.9, 'epsilon': 5e-4, 'scale': False, 'is_training':is_training}), \
          slim.arg_scope([slim.batch_norm], is_training=is_training):
-        logits, FLAGS.stride = getattr(nets, FLAGS.net)(X)
+        logits, FLAGS.stride = getattr(nets, FLAGS.net)(X-PIXEL_MEANS)
 
     # probability of class 1 -- not very useful if FLAGS.classes > 2
     #probs = tf.squeeze(tf.slice(tf.nn.softmax(logits), [0,0,0,1], [-1,-1,-1,1]), 3)
@@ -204,6 +167,25 @@ def main (_):
     saver = tf.train.Saver(max_to_keep=FLAGS.max_to_keep)
 
     stream = create_picpac_stream(FLAGS.db, True)
+    if FLAGS.gallery:
+        gal = Gallery(FLAGS.gallery, ext='.png')
+        for _, images  in stream:
+            image = images[0]
+            print(type(image), image.shape) #, type(anno))
+            #print(image.dtype, anno.dtype)
+            #print(np.mean(image[:, :, 0]), np.mean(image[:, :, 1]), np.mean(image[:, :, 2]))
+            C += 1
+            #print('%d / %d' % (C, stream.size()))
+            cv2.imwrite(gal.next(), image)
+            #cv2.imwrite(gal.next(), anno)
+            #cv2.imwrite(gal.next(), label * 255)
+            #cv2.imwrite(gal.next(), draw)
+            if C == FLAGS.gallery_max:
+                break
+            pass
+        gal.flush()
+        sys.exit(0)
+    
     # load validation db
     val_stream = None
     if FLAGS.val_db:

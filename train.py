@@ -88,7 +88,6 @@ def create_picpac_stream (db_path, is_training):
               "dtype": "float32",
               "batch": FLAGS.batch,
               "transforms": augments + [
-                  {"type": "normalize", "mean": 127, "std": 127},
                   #{"type": "resize", "size": FLAGS.size},
                   {"type": "clip", "size": FLAGS.size, "shift": shift, "border_type": "replicate"},
                   ]
@@ -117,7 +116,7 @@ def main (_):
     # load network
     with slim.arg_scope([slim.conv2d], weights_regularizer=slim.l2_regularizer(2.5e-4)), \
          slim.arg_scope([slim.batch_norm], decay=0.9, epsilon=5e-4): 
-        logits = getattr(nets, FLAGS.net)(X, is_training, FLAGS.classes)
+        logits = getattr(nets, FLAGS.net)(X-127, is_training, FLAGS.classes)
         # probability of class 1 -- not very useful if FLAGS.classes > 2
         probs = tf.squeeze(tf.slice(tf.nn.softmax(logits), [0,1], [-1,1]), 1)
 

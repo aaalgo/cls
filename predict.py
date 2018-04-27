@@ -39,7 +39,6 @@ flags.DEFINE_string('input', None, '')
 flags.DEFINE_string('name', 'logits:0', '')
 flags.DEFINE_float('cth', 0.5, '')
 flags.DEFINE_integer('stride', 16, '')
-flags.DEFINE_float('mean_pixel', 127, '')
 
 
 def save_prediction_image (path, image, prob):
@@ -74,14 +73,13 @@ def main (_):
     config.gpu_options.allow_growth=True
     with tf.Session(config=config) as sess:
         model.loader(sess)
-        image = cv2.imread(FLAGS.input, -1)
+        image = cv2.imread(FLAGS.input, cv2.IMREAD_COLOR)
         if model.is_fcn:    # clip image to multiple of strides
             H, W = image.shape[:2]
             H = H // FLAGS.stride * FLAGS.stride
             W = W // FLAGS.stride * FLAGS.stride
             image = image[:H, :W, :]
         batch = np.expand_dims(image, axis=0).astype(dtype=np.float32)
-        batch -= FLAGS.mean_pixel
         prob = sess.run(model.prob, feed_dict={X: batch, is_training: False})
         if len(prob.shape) == 1:
             print(prob[0])

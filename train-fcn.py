@@ -169,7 +169,8 @@ def main (_):
     stream = create_picpac_stream(FLAGS.db, True)
     if FLAGS.gallery:
         gal = Gallery(FLAGS.gallery, ext='.png')
-        for _, images  in stream:
+        C = 0 
+        for _, images, label  in stream:
             image = images[0]
             print(type(image), image.shape) #, type(anno))
             #print(image.dtype, anno.dtype)

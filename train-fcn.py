@@ -15,6 +15,7 @@ import tensorflow.contrib.layers as layers
 import tensorflow.contrib.slim as slim
 import fcn_nets as nets
 import picpac
+from gallery import Gallery
 
 augments = None
 #from . config import *
@@ -34,6 +35,7 @@ flags.DEFINE_string('db', None, 'training db')
 flags.DEFINE_string('val_db', None, 'validation db')
 flags.DEFINE_integer('classes', 2, 'number of classes')
 flags.DEFINE_string('mixin', None, 'mix-in training db')
+flags.DEFINE_integer('channels', 3, 'number of channels')
 
 flags.DEFINE_integer('size', None, '') 
 flags.DEFINE_integer('batch', 1, 'Batch size.  ')
@@ -56,6 +58,9 @@ flags.DEFINE_integer('max_epochs', 20000, '')
 flags.DEFINE_integer('ckpt_epochs', 10, '')
 flags.DEFINE_integer('val_epochs', 10, '')
 flags.DEFINE_boolean('adam', False, '')
+##generate gallery or not 
+flags.DEFINE_string('gallery', None, '')
+flags.DEFINE_integer('gallery_max', 200, '')
 
 COLORSPACE = 'BGR'
 #PIXEL_MEANS = np.array([[[[127.0, 127.0, 127.0]]]])
@@ -84,7 +89,7 @@ def create_picpac_stream (db_path, is_training):
     augments = []
     if is_training:
         augments = [
-                  #{"type": "augment.flip", "horizontal": True, "vertical": False},
+                  {"type": "augment.flip", "horizontal": True, "vertical": True},
                   {"type": "augment.rotate", "min":-10, "max":10},
                   {"type": "augment.scale", "min":0.9, "max":1.1},
                   {"type": "augment.add", "range":20},
@@ -97,7 +102,7 @@ def create_picpac_stream (db_path, is_training):
               "shuffle": is_training,
               "reshuffle": is_training,
               "annotate": True,
-              "channels": 3,
+              "channels": FLAGS.channels,
               "stratify": is_training,
               "dtype": "float32",
               "batch": FLAGS.batch,
@@ -126,7 +131,7 @@ def main (_):
         except:
             pass
 
-    X = tf.placeholder(tf.float32, shape=(None, None, None, 3), name="images")
+    X = tf.placeholder(tf.float32, shape=(None, None, None, FLAGS.channels), name="images")
 
     # ground truth labels
     Y = tf.placeholder(tf.int32, shape=(None, None, None, 1), name="labels")
@@ -142,8 +147,8 @@ def main (_):
         logits, FLAGS.stride = getattr(nets, FLAGS.net)(X-PIXEL_MEANS)
 
     # probability of class 1 -- not very useful if FLAGS.classes > 2
-    probs = tf.squeeze(tf.slice(tf.nn.softmax(logits), [0,0,0,1], [-1,-1,-1,1]), 3)
-
+    #probs = tf.squeeze(tf.slice(tf.nn.softmax(logits), [0,0,0,1], [-1,-1,-1,1]), 3)
+    probs = tf.squeeze(tf.slice(tf.nn.softmax(logits), [0,0,0,1], [-1,-1,-1,1]), 1)
     loss, metrics = fcn_loss(logits, Y)
     metric_names = [x.name[:-2] for x in metrics]
 
@@ -162,6 +167,25 @@ def main (_):
     saver = tf.train.Saver(max_to_keep=FLAGS.max_to_keep)
 
     stream = create_picpac_stream(FLAGS.db, True)
+    if FLAGS.gallery:
+        gal = Gallery(FLAGS.gallery, ext='.png')
+        for _, images  in stream:
+            image = images[0]
+            print(type(image), image.shape) #, type(anno))
+            #print(image.dtype, anno.dtype)
+            #print(np.mean(image[:, :, 0]), np.mean(image[:, :, 1]), np.mean(image[:, :, 2]))
+            C += 1
+            #print('%d / %d' % (C, stream.size()))
+            cv2.imwrite(gal.next(), image)
+            #cv2.imwrite(gal.next(), anno)
+            #cv2.imwrite(gal.next(), label * 255)
+            #cv2.imwrite(gal.next(), draw)
+            if C == FLAGS.gallery_max:
+                break
+            pass
+        gal.flush()
+        sys.exit(0)
+    
     # load validation db
     val_stream = None
     if FLAGS.val_db:
@@ -189,6 +213,7 @@ def main (_):
             progress = tqdm(range(epoch_steps), leave=False)
             for _ in progress:
                 _, images, labels = stream.next()
+                #print ("labels:",labels)
                 feed_dict = {X: images, Y: labels, is_training: True}
                 mm, _ = sess.run([metrics, train_op], feed_dict=feed_dict)
                 metrics_sum += np.array(mm) * images.shape[0]
@@ -247,7 +272,6 @@ def main (_):
             pass
         pass
     pass
-
 if __name__ == '__main__':
     try:
         tf.app.run()

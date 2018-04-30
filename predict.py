@@ -39,11 +39,15 @@ flags.DEFINE_string('input', None, '')
 flags.DEFINE_string('name', 'logits:0', '')
 flags.DEFINE_float('cth', 0.5, '')
 flags.DEFINE_integer('stride', 16, '')
+flags.DEFINE_integer('channels', 3, '')
 
 
 def save_prediction_image (path, image, prob):
     # image: original input image
     # prob: probability
+
+    if image.shape[2] == 1:
+        image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
 
     contours = measure.find_contours(prob, FLAGS.cth)
 
@@ -66,14 +70,20 @@ def save_prediction_image (path, image, prob):
 
 def main (_):
     assert os.path.exists(FLAGS.input)
-    X = tf.placeholder(tf.float32, shape=(None, None, None, 3), name="images")
+    X = tf.placeholder(tf.float32, shape=(None, None, None, FLAGS.channels), name="images")
     is_training = tf.placeholder(tf.bool, name="is_training")
     model = Model(X, is_training, FLAGS.model, 'xxx')
     config = tf.ConfigProto()
     config.gpu_options.allow_growth=True
     with tf.Session(config=config) as sess:
         model.loader(sess)
-        image = cv2.imread(FLAGS.input, cv2.IMREAD_COLOR)
+        if FLAGS.channels == 3:
+            image = cv2.imread(FLAGS.input, cv2.IMREAD_COLOR)
+        elif FLAGS.channels == 1:
+            image = cv2.imread(FLAGS.input, cv2.IMREAD_GRAYSCALE)
+            image = np.expand_dims(image, axis=2)
+        else:
+            assert 0
         if model.is_fcn:    # clip image to multiple of strides
             H, W = image.shape[:2]
             H = H // FLAGS.stride * FLAGS.stride

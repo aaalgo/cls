@@ -54,8 +54,11 @@ flags.DEFINE_string('mixin', None, 'mix-in training db')
 
 flags.DEFINE_integer('size', None, '') 
 flags.DEFINE_integer('batch', 1, 'Batch size.  ')
+flags.DEFINE_integer('channels', 3, '')
 flags.DEFINE_integer('shift', 0, '')
 flags.DEFINE_integer('stride', 16, '')
+flags.DEFINE_integer('max_size', 2000, '')
+flags.DEFINE_boolean('cache', True, '')
 
 flags.DEFINE_string('backbone', 'resnet_v2_50', 'architecture')
 flags.DEFINE_string('model', None, 'model directory')
@@ -147,22 +150,25 @@ def create_picpac_stream (db_path, is_training):
               "shuffle": is_training,
               "reshuffle": is_training,
               "annotate": True,
-              "channels": 3,
+              "channels": FLAGS.channels,
               "stratify": is_training,
               "dtype": "float32",
               "batch": FLAGS.batch,
               "colorspace": COLORSPACE,
+              "cache": FLAGS.cache,
               "transforms": augments + [
+                  {"type": "resize", "max_size": FLAGS.max_size},
                   {"type": "clip", "round": FLAGS.stride},
                   {"type": "rasterize"},
                   ]
              }
     if is_training and not FLAGS.mixin is None:
         print("mixin support is incomplete in new picpac.")
-    #    assert os.path.exists(FLAGS.mixin)
-    #    picpac_config['mixin'] = FLAGS.mixin
-    #    picpac_config['mixin_group_delta'] = 1
-    #    pass
+        assert os.path.exists(FLAGS.mixin)
+        config['mixin'] = FLAGS.mixin
+        config['mixin_group_reset'] = 0
+        config['mixin_group_delta'] = 1
+        pass
     return picpac.ImageStream(config)
 
 def main (_):
@@ -185,7 +191,7 @@ def main (_):
         COLORSPACE = 'RGB'
         PIXEL_MEANS = VGG_PIXEL_MEANS
 
-    X = tf.placeholder(tf.float32, shape=(None, None, None, 3), name="images")
+    X = tf.placeholder(tf.float32, shape=(None, None, None, FLAGS.channels), name="images")
     # ground truth labels
     Y = tf.placeholder(tf.int32, shape=(None, None, None, 1), name="labels")
     is_training = tf.placeholder(tf.bool, name="is_training")
@@ -198,6 +204,7 @@ def main (_):
                 weight_decay=FLAGS.weight_decay, is_training=is_training)
 
     ft, _ = network_fn(X-PIXEL_MEANS, global_pool=False, output_stride=16)
+    FLAGS.stride = 16
     logits = slim.conv2d_transpose(ft, FLAGS.classes, 32, 16)
     logits = tf.identity(logits, name='logits')
 

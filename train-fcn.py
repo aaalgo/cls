@@ -41,6 +41,7 @@ flags.DEFINE_integer('size', None, '')
 flags.DEFINE_integer('batch', 1, 'Batch size.  ')
 flags.DEFINE_integer('shift', 0, '')
 flags.DEFINE_integer('stride', 16, '')
+flags.DEFINE_integer('max_size', 2000, '')
 
 flags.DEFINE_string('net', 'myunet', 'architecture')
 flags.DEFINE_string('model', None, 'model directory')
@@ -109,16 +110,18 @@ def create_picpac_stream (db_path, is_training):
               "batch": FLAGS.batch,
               "colorspace": COLORSPACE,
               "transforms": augments + [
+                  {"type": "resize", "max_size": FLAGS.max_size},
                   {"type": "clip", "round": FLAGS.stride},
                   {"type": "rasterize"},
                   ]
              }
     if is_training and not FLAGS.mixin is None:
         print("mixin support is incomplete in new picpac.")
-    #    assert os.path.exists(FLAGS.mixin)
-    #    picpac_config['mixin'] = FLAGS.mixin
-    #    picpac_config['mixin_group_delta'] = 1
-    #    pass
+        assert os.path.exists(FLAGS.mixin)
+        config['mixin'] = FLAGS.mixin
+        config['mixin_group_reset'] = 0
+        config['mixin_group_delta'] = 1
+        pass
     return picpac.ImageStream(config)
 
 def main (_):

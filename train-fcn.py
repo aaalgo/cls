@@ -66,6 +66,7 @@ COLORSPACE = 'BGR'
 #PIXEL_MEANS = np.array([[[[127.0, 127.0, 127.0]]]])
 #VGG_PIXEL_MEANS = np.array([[[[103.94, 116.78, 123.68]]]])
 PIXEL_MEANS = tf.constant([[[[127.0, 127.0, 127.0]]]])
+PIXEL_MEANS1 = tf.constant([[[[127.0]]]])
 
 
 def fcn_loss (logits, labels):
@@ -122,6 +123,10 @@ def create_picpac_stream (db_path, is_training):
 
 def main (_):
     global PIXEL_MEANS
+    global PIXEL_MEANS1
+
+    if FLAGS.channels == 1:
+        PIXEL_MEANS = PIXEL_MEANS1
 
     logging.basicConfig(filename='train-%s-%s.log' % (FLAGS.net, datetime.datetime.now().strftime('%Y%m%d-%H%M%S')),level=logging.DEBUG, format='%(asctime)s %(message)s')
 

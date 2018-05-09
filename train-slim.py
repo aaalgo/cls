@@ -9,6 +9,7 @@ import logging
 from tqdm import tqdm
 import numpy as np
 import cv2
+import simplejson as json
 from sklearn.metrics import accuracy_score, roc_auc_score
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
@@ -51,6 +52,8 @@ flags.DEFINE_string('db', None, 'training db')
 flags.DEFINE_string('val_db', None, 'validation db')
 flags.DEFINE_integer('classes', 2, 'number of classes')
 flags.DEFINE_string('mixin', None, 'mix-in training db')
+flags.DEFINE_boolean('cache', True, '')
+flags.DEFINE_string('augments', None, 'augment config file')
 
 flags.DEFINE_integer('size', None, '') 
 flags.DEFINE_integer('batch', 128, 'Batch size.  ')
@@ -74,7 +77,7 @@ flags.DEFINE_integer('ckpt_epochs', 10, '')
 flags.DEFINE_integer('val_epochs', 10, '')
 flags.DEFINE_boolean('adam', False, '')
 
-COLORSPACE = 'BGR'
+CLORSPACE = 'BGR'
 PIXEL_MEANS = tf.constant([[[[127.0, 127.0, 127.0]]]])
 VGG_PIXEL_MEANS = tf.constant([[[[103.94, 116.78, 123.68]]]])
 
@@ -128,7 +131,13 @@ def create_picpac_stream (db_path, is_training, size):
     assert os.path.exists(db_path)
     augments = []
     if is_training:
-        augments = [
+        if FLAGS.augments:
+            with open(FLAGS.augments, 'r') as f:
+                augments = json.loads(f.read())
+            print("Using augments:")
+            print(json.dumps(augments))
+        else:
+            augments = [
                   {"type": "augment.flip", "horizontal": True, "vertical": False},
                   #{"type": "clip", "shift": 20},
                   {"type": "resize", "size": size + 20},
@@ -147,6 +156,7 @@ def create_picpac_stream (db_path, is_training, size):
               "dtype": "float32",
               "batch": FLAGS.batch,
               "colorspace": COLORSPACE,
+              "cache": FLAGS.cache,
               "transforms": augments + [
                   #{"type": "normalize", "mean": 127, "std": 127},
                   {"type": "clip", "size": size, "border_type": "replicate"},

@@ -6,6 +6,7 @@ import time
 from tqdm import tqdm
 import numpy as np
 import cv2
+import simplejson as json
 from sklearn.metrics import accuracy_score, roc_auc_score
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
@@ -33,6 +34,8 @@ flags.DEFINE_string('val_db', None, 'validation db')
 flags.DEFINE_integer('classes', 2, 'number of classes')
 flags.DEFINE_string('mixin', None, 'mix-in training db')
 flags.DEFINE_integer('channels', 3, '')
+flags.DEFINE_boolean('cache', True, '')
+flags.DEFINE_string('augments', None, 'augment config file')
 
 flags.DEFINE_integer('size', 224, '') 
 flags.DEFINE_integer('batch', 128, 'Batch size.  ')
@@ -74,7 +77,13 @@ def create_picpac_stream (db_path, is_training):
     shift = 0
     if is_training:
         shift = FLAGS.shift
-        augments = [
+        if FLAGS.augments:
+            with open(FLAGS.augments, 'r') as f:
+                augments = json.loads(f.read())
+            print("Using augments:")
+            print(json.dumps(augments))
+        else:
+            augments = [
                   {"type": "augment.flip", "horizontal": True, "vertical": False},
                 ]
 
@@ -87,6 +96,7 @@ def create_picpac_stream (db_path, is_training):
               "stratify": is_training,
               "dtype": "float32",
               "batch": FLAGS.batch,
+              "cache": FLAGS.cache,
               "transforms": augments + [
                   #{"type": "resize", "size": FLAGS.size},
                   {"type": "clip", "size": FLAGS.size, "shift": shift, "border_type": "replicate"},

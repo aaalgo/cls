@@ -9,6 +9,7 @@ import logging
 from tqdm import tqdm
 import numpy as np
 import cv2
+import simplejson as json
 from sklearn.metrics import accuracy_score, roc_auc_score
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
@@ -42,6 +43,8 @@ flags.DEFINE_integer('batch', 1, 'Batch size.  ')
 flags.DEFINE_integer('shift', 0, '')
 flags.DEFINE_integer('stride', 16, '')
 flags.DEFINE_integer('max_size', 2000, '')
+flags.DEFINE_boolean('cache', True, '')
+flags.DEFINE_string('augments', None, 'augment config file')
 
 flags.DEFINE_string('net', 'myunet', 'architecture')
 flags.DEFINE_string('model', None, 'model directory')
@@ -90,7 +93,13 @@ def create_picpac_stream (db_path, is_training):
     assert os.path.exists(db_path)
     augments = []
     if is_training:
-        augments = [
+        if FLAGS.augments:
+            with open(FLAGS.augments, 'r') as f:
+                augments = json.loads(f.read())
+            print("Using augments:")
+            print(json.dumps(augments))
+        else:
+            augments = [
                   {"type": "augment.flip", "horizontal": True, "vertical": True},
                   {"type": "augment.rotate", "min":-10, "max":10},
                   {"type": "augment.scale", "min":0.9, "max":1.1},
@@ -109,6 +118,7 @@ def create_picpac_stream (db_path, is_training):
               "dtype": "float32",
               "batch": FLAGS.batch,
               "colorspace": COLORSPACE,
+              "cache": FLAGS.cache,
               "transforms": augments + [
                   {"type": "resize", "max_size": FLAGS.max_size},
                   {"type": "clip", "round": FLAGS.stride},
@@ -152,7 +162,7 @@ def main (_):
                             padding='SAME'), \
                                     slim.arg_scope([slim.conv2d, slim.conv2d_transpose], weights_regularizer=slim.l2_regularizer(2.5e-4), normalizer_fn=slim.batch_norm, normalizer_params={'decay': 0.9, 'epsilon': 5e-4, 'scale': False, 'is_training':is_training}), \
          slim.arg_scope([slim.batch_norm], is_training=is_training):
-        logits, FLAGS.stride = getattr(nets, FLAGS.net)(X-PIXEL_MEANS)
+        logits, FLAGS.stride = getattr(nets, FLAGS.net)(X-PIXEL_MEANS, num_classes=FLAGS.classes)
 
     # probability of class 1 -- not very useful if FLAGS.classes > 2
     #probs = tf.squeeze(tf.slice(tf.nn.softmax(logits), [0,0,0,1], [-1,-1,-1,1]), 3)

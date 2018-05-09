@@ -9,6 +9,7 @@ import logging
 from tqdm import tqdm
 import numpy as np
 import cv2
+import simplejson as json
 from sklearn.metrics import accuracy_score, roc_auc_score
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
@@ -59,6 +60,7 @@ flags.DEFINE_integer('shift', 0, '')
 flags.DEFINE_integer('stride', 16, '')
 flags.DEFINE_integer('max_size', 2000, '')
 flags.DEFINE_boolean('cache', True, '')
+flags.DEFINE_string('augments', None, 'augment config file')
 
 flags.DEFINE_string('backbone', 'resnet_v2_50', 'architecture')
 flags.DEFINE_string('model', None, 'model directory')
@@ -136,7 +138,13 @@ def create_picpac_stream (db_path, is_training):
     assert os.path.exists(db_path)
     augments = []
     if is_training:
-        augments = [
+        if FLAGS.augments:
+            with open(FLAGS.augments, 'r') as f:
+                augments = json.loads(f.read())
+            print("Using augments:")
+            print(json.dumps(augments))
+        else:
+            augments = [
                   #{"type": "augment.flip", "horizontal": True, "vertical": False},
                   {"type": "augment.rotate", "min":-10, "max":10},
                   {"type": "augment.scale", "min":0.9, "max":1.1},

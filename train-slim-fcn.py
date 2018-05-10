@@ -60,6 +60,7 @@ flags.DEFINE_integer('shift', 0, '')
 flags.DEFINE_integer('stride', 16, '')
 flags.DEFINE_integer('max_size', 2000, '')
 flags.DEFINE_boolean('cache', True, '')
+flags.DEFINE_integer('picpac_dump', 0, '')
 flags.DEFINE_string('augments', None, 'augment config file')
 
 flags.DEFINE_string('backbone', 'resnet_v2_50', 'architecture')
@@ -164,6 +165,7 @@ def create_picpac_stream (db_path, is_training):
               "batch": FLAGS.batch,
               "colorspace": COLORSPACE,
               "cache": FLAGS.cache,
+              "dump": FLAGS.picpac_dump,
               "transforms": augments + [
                   {"type": "resize", "max_size": FLAGS.max_size},
                   {"type": "clip", "round": FLAGS.stride},
@@ -213,7 +215,8 @@ def main (_):
 
     ft, _ = network_fn(X-PIXEL_MEANS, global_pool=False, output_stride=16)
     FLAGS.stride = 16
-    logits = slim.conv2d_transpose(ft, FLAGS.classes, 32, 16)
+    with tf.variable_scope('head'):
+        logits = slim.conv2d_transpose(ft, FLAGS.classes, 32, 16)
     logits = tf.identity(logits, name='logits')
 
     # probability of class 1 -- not very useful if FLAGS.classes > 2
@@ -228,7 +231,7 @@ def main (_):
     init_finetune, variables_to_train = None, None
     if FLAGS.finetune:
         print_red("finetune, using RGB with vgg pixel means")
-        init_finetune, variables_to_train = setup_finetune(FLAGS.finetune, [FLAGS.net + '/logits'])
+        init_finetune, variables_to_train = setup_finetune(FLAGS.finetune, ['head'])
 
     global_step = tf.train.create_global_step()
     LR = tf.train.exponential_decay(FLAGS.lr, global_step, FLAGS.decay_steps, FLAGS.decay_rate, staircase=True)
@@ -238,6 +241,7 @@ def main (_):
     else:
         optimizer = tf.train.MomentumOptimizer(learning_rate=LR, momentum=0.9)
 
+    print(variables_to_train)
     train_op = slim.learning.create_train_op(loss, optimizer, global_step=global_step, variables_to_train=variables_to_train)
     saver = tf.train.Saver(max_to_keep=FLAGS.max_to_keep)
 

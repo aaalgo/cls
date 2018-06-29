@@ -80,6 +80,7 @@ flags.DEFINE_integer('max_epochs', 20000, '')
 flags.DEFINE_integer('ckpt_epochs', 10, '')
 flags.DEFINE_integer('val_epochs', 10, '')
 flags.DEFINE_boolean('adam', False, '')
+flags.DEFINE_boolean('vgg', False, '')
 
 COLORSPACE = 'BGR'
 PIXEL_MEANS = tf.constant([[[[127.0, 127.0, 127.0]]]])
@@ -196,7 +197,7 @@ def main (_):
         except:
             pass
 
-    if FLAGS.finetune:
+    if FLAGS.finetune or FLAGS.vgg:
         print_red("finetune, using RGB with vgg pixel means")
         COLORSPACE = 'RGB'
         PIXEL_MEANS = VGG_PIXEL_MEANS

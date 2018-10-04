@@ -1,5 +1,13 @@
 # A developed deep learning architecture for classification
 
+## For AAALGO Users
+
+This code requires official tensorflow models and picpac to run.  After cloning and cd into the repo, run the following to create the necessary links:
+```
+ln -s /shared/s2/users/wdong/picpac/build/lib.linux-x86_64-3.5/picpac.cpython-35m-x86_64-linux-gnu.so ./
+ln -s /shared/s2/users/wdong/cls/models ./
+```
+
 ## Requirements
 - Python
 - Tensorflow

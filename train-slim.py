@@ -77,7 +77,7 @@ flags.DEFINE_integer('ckpt_epochs', 10, '')
 flags.DEFINE_integer('val_epochs', 10, '')
 flags.DEFINE_boolean('adam', False, '')
 
-CLORSPACE = 'BGR'
+COLORSPACE = 'BGR'
 PIXEL_MEANS = tf.constant([[[[127.0, 127.0, 127.0]]]])
 VGG_PIXEL_MEANS = tf.constant([[[[103.94, 116.78, 123.68]]]])
 
